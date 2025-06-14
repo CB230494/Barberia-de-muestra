@@ -1,31 +1,27 @@
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, Request
+from pydantic import BaseModel
 import sqlite3
 from database import init_db
 
-app = Flask(__name__)
+app = FastAPI()
 init_db()
 
-@app.route('/agendar', methods=['POST'])
-def agendar():
-    data = request.get_json()
-    nombre = data.get('nombre')
-    fecha = data.get('fecha')
-    hora = data.get('hora')
+class Cita(BaseModel):
+    nombre: str
+    fecha: str
+    hora: str
 
-    if not nombre or not fecha or not hora:
-        return jsonify({'status': 'error', 'message': 'Faltan campos requeridos'}), 400
-
+@app.post("/agendar")
+async def agendar(cita: Cita):
     conn = sqlite3.connect('citas.db')
     c = conn.cursor()
-    c.execute("SELECT * FROM citas WHERE fecha=? AND hora=?", (fecha, hora))
+    c.execute("SELECT * FROM citas WHERE fecha=? AND hora=?", (cita.fecha, cita.hora))
     if c.fetchone():
         conn.close()
-        return jsonify({'status': 'error', 'message': 'Hora ya ocupada o bloqueada'}), 409
+        return {"status": "error", "message": "Hora ya ocupada o bloqueada"}
 
-    c.execute("INSERT INTO citas (nombre, fecha, hora) VALUES (?, ?, ?)", (nombre, fecha, hora))
+    c.execute("INSERT INTO citas (nombre, fecha, hora) VALUES (?, ?, ?)",
+              (cita.nombre, cita.fecha, cita.hora))
     conn.commit()
     conn.close()
-    return jsonify({'status': 'ok', 'message': 'Cita registrada exitosamente'}), 200
-
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8000)
+    return {"status": "ok", "message": "Cita registrada exitosamente"}
