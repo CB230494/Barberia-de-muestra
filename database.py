@@ -29,3 +29,25 @@ def obtener_citas():
     citas = c.fetchall()
     conn.close()
     return citas
+
+def obtener_citas_por_fecha(fecha):
+    conn = sqlite3.connect("citas.db")
+    c = conn.cursor()
+    c.execute("SELECT hora FROM citas WHERE fecha = ?", (fecha,))
+    horas_ocupadas = [fila[0] for fila in c.fetchall()]
+    conn.close()
+    return horas_ocupadas
+
+def bloquear_hora(fecha, hora):
+    conn = sqlite3.connect("citas.db")
+    c = conn.cursor()
+    c.execute("INSERT INTO citas (nombre, fecha, hora) VALUES (?, ?, ?)", ("BLOQUEADO", fecha, hora))
+    conn.commit()
+    conn.close()
+
+def desbloquear_hora(fecha, hora):
+    conn = sqlite3.connect("citas.db")
+    c = conn.cursor()
+    c.execute("DELETE FROM citas WHERE fecha = ? AND hora = ? AND nombre = ?", (fecha, hora, "BLOQUEADO"))
+    conn.commit()
+    conn.close()
