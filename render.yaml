@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: api-barberia
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: "python api.py"
