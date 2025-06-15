@@ -69,6 +69,8 @@ if opcion == "Registro de cortes":
 
     st.subheader("📊 Resumen general")
     total_cortes, total_ganancias = obtener_resumen()
+    total_cortes = total_cortes or 0
+    total_ganancias = total_ganancias or 0.0
     st.markdown(f"✂️ **Total de cortes realizados:** {total_cortes}")
     st.markdown(f"💰 **Ganancias acumuladas:** ₡{total_ganancias:.2f}")
 
@@ -116,6 +118,7 @@ elif opcion == "Gestión mensual y ventas":
     # --- Resumen mensual combinado ---
     st.subheader("📊 Resumen mensual combinado")
     resumen = obtener_resumen_mensual(anio, mes)
+    resumen = {k: v or 0 for k, v in resumen.items()}  # Asegura que no haya None
     st.markdown(f"- ✂️ Cortes realizados: **{resumen['cortes_realizados']}**")
     st.markdown(f"- 💰 Ganancia por cortes: **₡{resumen['ganancia_cortes']:.2f}**")
     st.markdown(f"- 🧴 Productos vendidos: **{resumen['productos_vendidos']}**")
