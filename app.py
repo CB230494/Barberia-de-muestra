@@ -15,27 +15,49 @@ from database import (
 )
 from datetime import date, datetime
 import calendar
+import sqlite3
 
 # Inicializar base de datos
 init_db()
 
-# Estilo visual (rojo vino en menú lateral con efecto 3D)
+# Estilos personalizados
 st.markdown("""
     <style>
-    .main {
-        background-color: #f5f5f5;
+    html, body, .main {
+        background-color: #4b0f1f;
+        color: white;
+    }
+    .stApp {
+        background-color: #4b0f1f;
+    }
+    .stButton>button {
+        background-color: #005caa;
+        color: white;
+        font-weight: bold;
+        border-radius: 8px;
+        padding: 0.5em 1em;
+        border: none;
+    }
+    .stButton>button:hover {
+        background-color: #0b72c1;
     }
     .css-1v0mbdj.ef3psqc12 {
-        background-color: #730c18 !important;
+        background-color: #005caa !important;
         border-radius: 10px;
         color: white !important;
         font-weight: bold;
-        box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.3);
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
         transition: all 0.3s ease-in-out;
     }
     .css-1v0mbdj.ef3psqc12:hover {
-        background-color: #8a1222 !important;
+        background-color: #0b72c1 !important;
         transform: scale(1.02);
+    }
+    .block-container {
+        padding: 1rem 2rem;
+    }
+    .css-18e3th9 {
+        padding-top: 2rem;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -46,6 +68,7 @@ opcion = st.sidebar.radio("Ir a:", ["Registro de cortes", "Gestión mensual y ve
 
 # Encabezado general
 st.markdown("## 💈 Sistema de Gestión para Barbería")
+
 # Registro de cortes (Parte básica)
 if opcion == "Registro de cortes":
     st.subheader("✂️ Registro diario de cortes")
