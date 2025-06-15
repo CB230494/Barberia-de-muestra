@@ -2,31 +2,21 @@ import streamlit as st
 from database import init_db, registrar_cortes, obtener_registros, obtener_resumen
 from datetime import date
 
+# Inicializar base de datos
 init_db()
 
-# --- Estilo personalizado ---
+# --- Estilos personalizados con franjas en esquinas ---
 st.markdown("""
     <style>
+    /* Fondo blanco con franjas decorativas */
     .stApp {
-        background: linear-gradient(
-            to top right,
-            #ffffff 0%,
-            #ffffff 70%,
-            #ff0000 70%,
-            #ff0000 78%,
-            #ffffff 78%,
-            #ffffff 100%
-        ),
-        linear-gradient(
-            to bottom left,
-            #ffffff 0%,
-            #ffffff 85%,
-            #ff0000 85%,
-            #ff0000 92%,
-            #ffffff 92%,
-            #ffffff 100%
-        );
-        background-blend-mode: lighten;
+        background-color: white;
+        background-image: 
+            linear-gradient(135deg, #ff0000 0%, #ff0000 15%, transparent 15%),
+            linear-gradient(225deg, #ff0000 0%, #ff0000 15%, transparent 15%);
+        background-repeat: no-repeat;
+        background-position: top right, bottom left;
+        background-size: 150px 150px, 150px 150px;
         font-family: 'Segoe UI', sans-serif;
     }
 
@@ -53,6 +43,7 @@ st.markdown("""
     section[data-testid="stSidebar"] span {
         color: white !important;
     }
+
     </style>
 """, unsafe_allow_html=True)
 
@@ -60,10 +51,10 @@ st.markdown("""
 st.sidebar.title("💈 Menú")
 st.sidebar.markdown("Navega entre las secciones del sistema:")
 
-# Título
+# --- Título principal ---
 st.title("💈 Barbería - Panel Básico")
 
-# Resumen general
+# --- Resumen general ---
 st.subheader("📊 Resumen general")
 total_cortes, total_ganancias = obtener_resumen()
 
@@ -76,7 +67,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Registro de cortes
+# --- Registro de cortes ---
 st.subheader("📝 Registrar cortes del día")
 fecha = st.date_input("Fecha", date.today())
 cantidad = st.number_input("Cantidad de cortes", min_value=0, step=1)
@@ -89,14 +80,13 @@ if st.button("Guardar"):
     else:
         st.warning("⚠️ Ya existe un registro para esa fecha.")
 
-# Historial
+# --- Historial de cortes ---
 st.subheader("📅 Historial de cortes registrados")
 registros = obtener_registros()
 if registros:
     st.table(registros)
 else:
     st.info("Aún no se han registrado cortes.")
-
 
 
 
