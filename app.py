@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import date
 import pandas as pd
+import sqlite3
 from database import (
     init_db,
     registrar_cortes,
@@ -14,7 +15,13 @@ from database import (
 
 init_db()
 
-# --- ESTILOS ---
+# Diccionario para nombres de meses en español
+meses_dict = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio",
+    7: "Julio", 8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+}
+
+# Estilos CSS para el menú lateral
 st.markdown("""
     <style>
     section[data-testid="stSidebar"] {
@@ -38,11 +45,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- MENÚ LATERAL ---
 st.sidebar.title("💈 Menú")
 opcion = st.sidebar.radio("Ir a:", ["Registro de cortes", "Gestión mensual y ventas"])
-
-# --- REGISTRO DE CORTES (parte básica) ---
 if opcion == "Registro de cortes":
     st.title("💈 Registro de cortes")
 
@@ -73,19 +77,17 @@ if opcion == "Registro de cortes":
     total_ganancias = total_ganancias or 0.0
     st.markdown(f"✂️ **Total de cortes realizados:** {total_cortes}")
     st.markdown(f"💰 **Ganancias acumuladas:** ₡{total_ganancias:.2f}")
-
-# --- GESTIÓN MENSUAL Y VENTAS (parte media) ---
 elif opcion == "Gestión mensual y ventas":
     st.title("📦 Barbería - Parte Media del Proyecto")
     st.caption("Esta sección incluye todo lo del módulo básico (registro de cortes) y añade: resumen mensual y control de ventas.")
 
-    # --- Filtro mensual de cortes ---
     st.subheader("📅 Filtro mensual de cortes")
     col1, col2 = st.columns(2)
     with col1:
         anio = st.selectbox("Año", list(range(2023, date.today().year + 1)))
     with col2:
-        mes = st.selectbox("Mes", list(range(1, 13)))
+        mes_nombre = st.selectbox("Mes", list(meses_dict.values()))
+        mes = [k for k, v in meses_dict.items() if v == mes_nombre][0]
 
     cortes_mes = obtener_cortes_por_mes(anio, mes)
     if cortes_mes:
@@ -94,7 +96,9 @@ elif opcion == "Gestión mensual y ventas":
     else:
         st.info("No hay cortes registrados en ese mes.")
 
-    # --- Registro de ventas ---
+    st.subheader("🔎 Buscar ventas por producto")
+    filtro = st.text_input("Nombre del producto (buscar):").strip().lower()
+
     st.subheader("🧴 Registro de ventas de productos")
     with st.form("form_ventas"):
         fecha_venta = st.date_input("Fecha de venta", date.today())
@@ -106,23 +110,58 @@ elif opcion == "Gestión mensual y ventas":
             registrar_venta(str(fecha_venta), producto, cantidad, total)
             st.success("✅ Venta registrada exitosamente")
 
-    # --- Historial de ventas ---
     st.subheader("🧾 Historial de ventas")
     ventas = obtener_ventas()
-    if ventas:
-        df_ventas = pd.DataFrame(ventas, columns=["Fecha", "Producto", "Cantidad", "Total"])
-        st.table(df_ventas)
-    else:
-        st.info("Aún no hay ventas registradas.")
+    if filtro:
+        ventas = [v for v in ventas if filtro in v[1].lower()]
 
-    # --- Resumen mensual combinado ---
+    if ventas:
+        for i, (fecha, producto, cantidad, total) in enumerate(ventas):
+            col1, col2, col3, col4, col5, col6 = st.columns([2, 2, 1, 1, 1, 1])
+            with col1: st.write(f"📅 {fecha}")
+            with col2: st.write(f"🧴 {producto}")
+            with col3: st.write(f"{cantidad}")
+            with col4: st.write(f"₡{total:.2f}")
+            with col5:
+                if st.button("✏️", key=f"edit_{i}"):
+                    with st.form(f"form_edit_{i}"):
+                        new_fecha = st.date_input("Fecha", date.fromisoformat(fecha), key=f"f_{i}")
+                        new_producto = st.text_input("Producto", value=producto, key=f"p_{i}")
+                        new_cantidad = st.number_input("Cantidad", value=int(cantidad), key=f"c_{i}")
+                        new_total = st.number_input("Total", value=float(total), format="%.2f", key=f"t_{i}")
+                        actualizar = st.form_submit_button("Actualizar")
+                        if actualizar:
+                            conn = sqlite3.connect("barberia.db")
+                            cursor = conn.cursor()
+                            cursor.execute("DELETE FROM ventas WHERE fecha = ? AND producto = ? AND cantidad = ? AND total = ?",
+                                           (fecha, producto, cantidad, total))
+                            cursor.execute("INSERT INTO ventas (fecha, producto, cantidad, total) VALUES (?, ?, ?, ?)",
+                                           (str(new_fecha), new_producto, new_cantidad, new_total))
+                            conn.commit()
+                            conn.close()
+                            st.success("✅ Venta actualizada")
+                            st.experimental_rerun()
+            with col6:
+                if st.button("🗑️", key=f"del_{i}"):
+                    conn = sqlite3.connect("barberia.db")
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM ventas WHERE fecha = ? AND producto = ? AND cantidad = ? AND total = ?",
+                                   (fecha, producto, cantidad, total))
+                    conn.commit()
+                    conn.close()
+                    st.success("✅ Venta eliminada")
+                    st.experimental_rerun()
+    else:
+        st.info("No hay ventas para mostrar.")
+
     st.subheader("📊 Resumen mensual combinado")
     resumen = obtener_resumen_mensual(anio, mes)
-    resumen = {k: v or 0 for k, v in resumen.items()}  # Asegura que no haya None
+    resumen = {k: v or 0 for k, v in resumen.items()}
     st.markdown(f"- ✂️ Cortes realizados: **{resumen['cortes_realizados']}**")
     st.markdown(f"- 💰 Ganancia por cortes: **₡{resumen['ganancia_cortes']:.2f}**")
     st.markdown(f"- 🧴 Productos vendidos: **{resumen['productos_vendidos']}**")
     st.markdown(f"- 💸 Ganancia por ventas: **₡{resumen['ganancia_ventas']:.2f}**")
+
 
 
 
