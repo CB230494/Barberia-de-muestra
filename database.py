@@ -1,5 +1,4 @@
 import sqlite3
-from datetime import date
 
 def init_db():
     conn = sqlite3.connect("barberia.db")
@@ -24,7 +23,7 @@ def registrar_cortes(fecha, cantidad_cortes, ganancias):
         conn.commit()
         exito = True
     except sqlite3.IntegrityError:
-        exito = False  # Ya existe registro para esa fecha
+        exito = False
     conn.close()
     return exito
 
@@ -42,5 +41,9 @@ def obtener_resumen():
     cursor.execute("SELECT SUM(cantidad_cortes), SUM(ganancias) FROM cortes")
     resumen = cursor.fetchone()
     conn.close()
-    return resumen if resumen else (0, 0.0)
+
+    total_cortes = resumen[0] if resumen[0] is not None else 0
+    total_ganancias = resumen[1] if resumen[1] is not None else 0.0
+
+    return total_cortes, total_ganancias
 
