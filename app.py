@@ -20,7 +20,7 @@ import sqlite3
 # Inicializar base de datos
 init_db()
 
-# Estilo CSS corregido y actualizado
+# Estilo CSS personalizado
 st.markdown("""
     <style>
     /* Menú lateral azul oscuro */
@@ -33,7 +33,7 @@ st.markdown("""
         color: white !important;
     }
 
-    /* Botones */
+    /* Botones generales */
     .stButton > button {
         background-color: #005caa;
         color: white;
@@ -47,7 +47,7 @@ st.markdown("""
         background-color: #0b72c1;
     }
 
-    /* Fondo general blanco */
+    /* Fondo blanco general */
     html, body, .stApp {
         background-color: white;
         color: black;
@@ -55,16 +55,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Menú lateral funcional
+# Menú lateral
 st.sidebar.title("Menú")
 opcion = st.sidebar.radio("Ir a:", ["Registro de cortes", "Gestión mensual y ventas", "Inventario"])
 
-# Título principal
+# Encabezado principal
 st.markdown("## 💈 Sistema de Gestión para Barbería")
-
-
-
-# Registro de cortes (Parte básica)
 if opcion == "Registro de cortes":
     st.subheader("✂️ Registro diario de cortes")
 
@@ -92,10 +88,9 @@ if opcion == "Registro de cortes":
 
     st.subheader("📊 Resumen general")
     resumen = obtener_resumen()
-    if resumen and resumen[0]:
-        st.success(f"💇‍♂️ Total de cortes: **{resumen[0]}** — 💰 Ganancia acumulada: **₡{resumen[1]:,.2f}**")
-    else:
-        st.info("Aún no se han registrado datos para mostrar el resumen.")
+    total_cortes = resumen[0] or 0
+    total_ganancias = resumen[1] or 0.0
+    st.success(f"💇‍♂️ Total de cortes: **{total_cortes}** — 💰 Ganancia acumulada: **₡{total_ganancias:,.2f}**")
 elif opcion == "Gestión mensual y ventas":
     st.subheader("📆 Gestión mensual y ventas de productos")
 
@@ -112,20 +107,19 @@ elif opcion == "Gestión mensual y ventas":
     anio = st.selectbox("Año", list(range(anio_actual, anio_actual - 5, -1)))
     mes = st.selectbox("Mes", list(meses.keys()), format_func=lambda x: meses[x])
 
-resumen = obtener_resumen_mensual(anio, mes)
+    resumen = obtener_resumen_mensual(anio, mes)
 
-# Valores seguros en caso de que alguno sea None
-cortes = resumen.get("cortes_realizados") or 0
-gan_cortes = resumen.get("ganancia_cortes") or 0.0
-productos = resumen.get("productos_vendidos") or 0
-gan_ventas = resumen.get("ganancia_ventas") or 0.0
+    # Validación para evitar errores de formato con None
+    cortes = resumen.get("cortes_realizados") or 0
+    gan_cortes = resumen.get("ganancia_cortes") or 0.0
+    productos = resumen.get("productos_vendidos") or 0
+    gan_ventas = resumen.get("ganancia_ventas") or 0.0
 
-st.subheader(f"📊 Resumen de {meses[mes]} {anio}")
-st.write(f"💈 Cortes: **{cortes}**")
-st.write(f"💰 Ganancia por cortes: **₡{gan_cortes:,.2f}**")
-st.write(f"🧴 Productos vendidos: **{productos}**")
-st.write(f"💵 Ganancia por ventas: **₡{gan_ventas:,.2f}**")
-
+    st.subheader(f"📊 Resumen de {meses[mes]} {anio}")
+    st.write(f"💈 Cortes: **{cortes}**")
+    st.write(f"💰 Ganancia por cortes: **₡{gan_cortes:,.2f}**")
+    st.write(f"🧴 Productos vendidos: **{productos}**")
+    st.write(f"💵 Ganancia por ventas: **₡{gan_ventas:,.2f}**")
 
     st.subheader("🧾 Registrar venta de productos")
     with st.form("form_venta"):
@@ -165,49 +159,41 @@ st.write(f"💵 Ganancia por ventas: **₡{gan_ventas:,.2f}**")
 elif opcion == "Inventario":
     st.subheader("📦 Gestión de Inventario")
 
-    st.markdown("Registra productos usados o vendidos, como cremas, ceras, etc.")
-
     with st.form("form_inventario"):
         nombre = st.text_input("Nombre del producto")
-        tipo = st.selectbox("Tipo", ["Uso interno", "Venta"])
-        cantidad = st.number_input("Cantidad disponible", min_value=0, step=1)
-        precio_unitario = st.number_input("Precio unitario (₡)", min_value=0.0, step=100.0, format="%.2f")
-        registrar_p = st.form_submit_button("Agregar al inventario")
-        if registrar_p and nombre:
-            registrar_producto(nombre, tipo, cantidad, precio_unitario)
-            st.success("✅ Producto registrado")
+        stock = st.number_input("Cantidad disponible", min_value=0, step=1)
+        precio = st.number_input("Precio unitario (₡)", min_value=0.0, step=100.0, format="%.2f")
+        guardar = st.form_submit_button("Guardar")
+
+        if guardar and nombre:
+            registrar_producto(nombre, stock, precio)
+            st.success("✅ Producto registrado correctamente")
             st.experimental_rerun()
 
-    st.subheader("📋 Productos en inventario")
-
+    st.subheader("📋 Productos registrados")
     productos = obtener_productos()
     if productos:
         for i, p in enumerate(productos):
-            col1, col2, col3, col4, col5 = st.columns([2, 2, 1, 1, 1])
-            col1.write(f"🧴 {p[0]}")
-            col2.write(f"🔖 {p[1]}")
-            col3.write(f"📦 {p[2]} ud.")
-            col4.write(f"₡{p[3]:,.2f}")
+            col1, col2, col3, col4, col5 = st.columns([2, 1, 2, 1, 1])
+            col1.write(f"🧴 {p[1]}")
+            col2.write(f"{p[2]} ud.")
+            col3.write(f"₡{p[3]:,.2f}")
 
             if p[2] < 3:
-                st.warning(f"⚠️ Bajo stock: {p[0]} tiene solo {p[2]} unidades")
+                col3.markdown("⚠️ <span style='color:red'>Stock bajo</span>", unsafe_allow_html=True)
 
-            with col5:
-                if st.button("🗑️", key=f"del_inv_{i}"):
-                    eliminar_producto(p[0], p[1])
-                    st.success("✅ Producto eliminado")
-                    st.experimental_rerun()
-
-                with st.expander("✏️ Editar", expanded=False):
-                    nuevo_nombre = st.text_input("Nuevo nombre", value=p[0], key=f"nomb_{i}")
-                    nuevo_tipo = st.selectbox("Nuevo tipo", ["Uso interno", "Venta"], index=0 if p[1] == "Uso interno" else 1, key=f"tipo_{i}")
-                    nueva_cant = st.number_input("Nueva cantidad", value=p[2], step=1, key=f"cant_{i}")
-                    nuevo_precio = st.number_input("Nuevo precio (₡)", value=p[3], step=100.0, format="%.2f", key=f"prec_{i}")
-                    if st.button("Guardar cambios", key=f"edit_inv_{i}"):
-                        actualizar_producto(p[0], p[1], nuevo_nombre, nuevo_tipo, nueva_cant, nuevo_precio)
+            with col4:
+                if st.button("✏️", key=f"edit_{i}"):
+                    nuevo_stock = st.number_input("Nuevo stock", value=p[2], key=f"new_stock_{i}")
+                    nuevo_precio = st.number_input("Nuevo precio", value=p[3], key=f"new_price_{i}", format="%.2f")
+                    if st.button("Actualizar", key=f"update_{i}"):
+                        actualizar_producto(p[0], nuevo_stock, nuevo_precio)
                         st.success("✅ Producto actualizado")
                         st.experimental_rerun()
+            with col5:
+                if st.button("🗑️", key=f"del_{i}"):
+                    eliminar_producto(p[0])
+                    st.success("✅ Producto eliminado")
+                    st.experimental_rerun()
     else:
-        st.info("No hay productos en el inventario.")
-
-
+        st.info("No hay productos registrados.")
