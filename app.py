@@ -56,42 +56,57 @@ st.markdown("""
         color: black !important;
     }
 
-    .stButton > button {
-        background-color: #800000 !important;
-        color: white !important;
-        font-weight: bold !important;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        border: none;
-    }
+   /* Botones normales */
+.stButton > button {
+    background-color: #800000 !important;
+    color: white !important;
+    font-weight: bold !important;
+    border-radius: 8px;
+    padding: 0.5rem 1.2rem;
+    border: none;
+}
 
-    .stButton > button:hover {
-        background-color: #a00000 !important;
-    }
+/* Hover */
+.stButton > button:hover {
+    background-color: #a00000 !important;
+}
 
-    /* FAB - Botón flotante */
-    .fab-container {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 100;
-    }
+/* Botones dentro de formularios */
+form button {
+    background-color: #800000 !important;
+    color: white !important;
+    font-weight: bold !important;
+    border-radius: 8px !important;
+    border: none !important;
+    padding: 0.5rem 1.2rem !important;
+    font-size: 1rem !important;
+    margin-top: 1rem;
+}
 
-    .fab-button {
-        background-color: #800000;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 60px;
-        height: 60px;
-        font-size: 28px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
-        cursor: pointer;
-    }
+/* Botón flotante */
+.fab-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
+}
 
-    .fab-button:hover {
-        background-color: #a00000;
-    }
+.fab-button {
+    background-color: #800000;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+    cursor: pointer;
+}
+
+.fab-button:hover {
+    background-color: #a00000;
+}
+
     </style>
 """, unsafe_allow_html=True)
 
