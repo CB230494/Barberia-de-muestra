@@ -6,7 +6,7 @@ import pandas as pd
 
 init_db()
 
-# --- ESTILOS MÓVIL Y BOTÓN FLOTANTE ---
+# --- ESTILOS MÓVIL Y CORRECCIONES VISUALES ---
 st.markdown("""
     <style>
     html, body, .stApp {
@@ -56,57 +56,49 @@ st.markdown("""
         color: black !important;
     }
 
-   /* Botones normales */
-.stButton > button {
-    background-color: #800000 !important;
-    color: white !important;
-    font-weight: bold !important;
-    border-radius: 8px;
-    padding: 0.5rem 1.2rem;
-    border: none;
-}
+    .stButton > button, form button {
+        background-color: #800000 !important;
+        color: white !important;
+        font-weight: bold !important;
+        border-radius: 8px !important;
+        padding: 0.5rem 1.2rem !important;
+        font-size: 1rem !important;
+        border: none !important;
+    }
 
-/* Hover */
-.stButton > button:hover {
-    background-color: #a00000 !important;
-}
+    form button:hover {
+        background-color: #a00000 !important;
+    }
 
-/* Botones dentro de formularios */
-form button {
-    background-color: #800000 !important;
-    color: white !important;
-    font-weight: bold !important;
-    border-radius: 8px !important;
-    border: none !important;
-    padding: 0.5rem 1.2rem !important;
-    font-size: 1rem !important;
-    margin-top: 1rem;
-}
+    .stAlert-success {
+        background-color: #d1f1d1 !important;
+        color: #134d13 !important;
+        font-weight: bold;
+    }
 
-/* Botón flotante */
-.fab-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 100;
-}
+    /* FAB - Botón flotante */
+    .fab-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 100;
+    }
 
-.fab-button {
-    background-color: #800000;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    font-size: 28px;
-    box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
-    cursor: pointer;
-}
+    .fab-button {
+        background-color: #800000;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+        cursor: pointer;
+    }
 
-.fab-button:hover {
-    background-color: #a00000;
-}
-
+    .fab-button:hover {
+        background-color: #a00000;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -114,13 +106,13 @@ form button {
 st.sidebar.title("💈 Menú")
 st.sidebar.markdown("Navega entre las secciones del sistema:")
 
-# --- CONTENIDO PRINCIPAL ---
+# --- TÍTULO ---
 st.title("💈 Barbería - Panel Básico")
 
-# --- BOTÓN FLOTANTE ---
+# --- FAB flotante para abrir el formulario ---
 st.markdown('<div class="fab-container"><button class="fab-button" onclick="window.location.hash = \'#formulario\'">✂️</button></div>', unsafe_allow_html=True)
 
-# --- FORMULARIO PARA REGISTRAR CORTES ---
+# --- FORMULARIO de registro ---
 st.markdown("<div id='formulario'></div>", unsafe_allow_html=True)
 with st.form("form_registro"):
     st.subheader("📝 Registrar cortes del día")
@@ -175,7 +167,7 @@ if registros:
 else:
     st.info("Aún no se han registrado cortes.")
 
-# --- RESUMEN GENERAL ---
+# --- RESUMEN FINAL ---
 st.subheader("📊 Resumen general")
 total_cortes, total_ganancias = obtener_resumen()
 st.markdown(
