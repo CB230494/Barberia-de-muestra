@@ -2,16 +2,18 @@ import streamlit as st
 from database import init_db, registrar_cortes, obtener_registros, obtener_resumen
 from datetime import date
 
-# Inicializar base de datos
 init_db()
 
-# --- Estilos con fondo completamente rojo ---
+# --- Estilos personalizados con franjas laterales vino ---
 st.markdown("""
     <style>
     .stApp {
-        background-color: #ff0000;
-        color: white;
+        background-color: #ffffff;
         font-family: 'Segoe UI', sans-serif;
+        background-image:
+            linear-gradient(to right, #800000 0%, #800000 15%, transparent 15%, transparent 85%, #800000 85%, #800000 100%);
+        background-repeat: no-repeat;
+        background-size: cover;
     }
 
     .info-card {
@@ -25,11 +27,11 @@ st.markdown("""
     }
 
     h1, h2, h3 {
-        color: white;
+        color: #800000;
     }
 
     label, .stTextInput label, .stNumberInput label, .stDateInput label {
-        color: white !important;
+        color: #333333 !important;
     }
 
     section[data-testid="stSidebar"] {
@@ -47,7 +49,6 @@ st.markdown("""
         background-color: white !important;
         color: black !important;
     }
-
     </style>
 """, unsafe_allow_html=True)
 
@@ -84,7 +85,7 @@ if st.button("Guardar"):
     else:
         st.warning("⚠️ Ya existe un registro para esa fecha.")
 
-# --- Historial de cortes ---
+# --- Historial ---
 st.subheader("📅 Historial de cortes registrados")
 registros = obtener_registros()
 if registros:
