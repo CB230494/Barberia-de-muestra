@@ -21,8 +21,9 @@ st.markdown("""
     section[data-testid="stSidebar"] {
         background-color: #003366;
     }
-    section[data-testid="stSidebar"] .st-bk {
-        color: white;
+    section[data-testid="stSidebar"] * {
+        color: white !important;
+        font-weight: bold;
     }
     /* Botones tipo 3D */
     div.stButton > button {
@@ -38,7 +39,7 @@ st.markdown("""
         background-color: #990000;
         transform: scale(1.03);
     }
-    /* Cajas de info */
+    /* Cajas informativas */
     .info-card {
         background-color: #f7f7f7;
         padding: 15px;
@@ -48,6 +49,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
 
 # Menú lateral
 opcion = st.sidebar.radio("Menú Principal", ["Registro de cortes", "Gestión mensual y ventas", "Inventario"])
