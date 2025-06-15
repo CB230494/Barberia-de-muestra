@@ -20,11 +20,21 @@ import sqlite3
 # Inicializar base de datos
 init_db()
 
-# Estilos personalizados
+# Estilo CSS corregido y actualizado
 st.markdown("""
     <style>
+    /* Menú lateral azul oscuro */
+    section[data-testid="stSidebar"] {
+        background-color: #002244 !important;
+    }
+
+    /* Texto del menú lateral */
+    section[data-testid="stSidebar"] * {
+        color: white !important;
+    }
+
     /* Botones */
-    .stButton>button {
+    .stButton > button {
         background-color: #005caa;
         color: white;
         font-weight: bold;
@@ -32,38 +42,26 @@ st.markdown("""
         padding: 0.5em 1em;
         border: none;
     }
-    .stButton>button:hover {
+
+    .stButton > button:hover {
         background-color: #0b72c1;
     }
 
-    /* Menú lateral azul */
-    .css-1v0mbdj.ef3psqc12 {
-        background-color: #005caa !important;
-        border-radius: 10px;
-        color: white !important;
-        font-weight: bold;
-        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
-        transition: all 0.3s ease-in-out;
-    }
-    .css-1v0mbdj.ef3psqc12:hover {
-        background-color: #0b72c1 !important;
-        transform: scale(1.02);
-    }
-
-    /* Eliminar color de fondo general */
-    html, body, .main, .stApp {
+    /* Fondo general blanco */
+    html, body, .stApp {
         background-color: white;
         color: black;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Menú lateral
+# Menú lateral funcional
 st.sidebar.title("Menú")
 opcion = st.sidebar.radio("Ir a:", ["Registro de cortes", "Gestión mensual y ventas", "Inventario"])
 
-# Encabezado general
+# Título principal
 st.markdown("## 💈 Sistema de Gestión para Barbería")
+
 
 
 # Registro de cortes (Parte básica)
