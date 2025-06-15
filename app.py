@@ -113,7 +113,14 @@ elif opcion == "Gestión mensual y ventas":
     with col1:
         anio = st.selectbox("Seleccione el año", options=list(range(2022, date.today().year + 1)), index=1)
     with col2:
-        mes = st.selectbox("Seleccione el mes", options=list(enumerate(calendar.month_name))[1:], format_func=lambda x: x[1])[0]
+        meses_es = [
+    (1, "Enero"), (2, "Febrero"), (3, "Marzo"), (4, "Abril"),
+    (5, "Mayo"), (6, "Junio"), (7, "Julio"), (8, "Agosto"),
+    (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre")
+]
+
+mes = st.selectbox("Seleccione el mes", options=meses_es, format_func=lambda x: x[1])[0]
+
 
     cortes = obtener_cortes_por_mes(anio, mes)
     ventas = obtener_ventas()
