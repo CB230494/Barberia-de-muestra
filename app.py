@@ -6,37 +6,39 @@ import pandas as pd
 
 init_db()
 
-# --- ESTILO: fondo completo vino y centro legible ---
+# --- ESTILOS PARA MÓVIL (FULLSCREEN + NATIVO) ---
 st.markdown("""
     <style>
-    .stApp {
+    html, body, [data-testid="stAppViewContainer"], .stApp {
         background-color: #800000;
-        font-family: 'Segoe UI', sans-serif;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
     }
 
     .block-container {
         background-color: white;
-        padding: 2rem;
-        border-radius: 1.5rem;
-        box-shadow: 5px 5px 20px rgba(0, 0, 0, 0.2);
+        padding: 2rem 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        margin: 0 auto;
+        max-width: 600px;
+        color: black;
     }
 
     .info-card {
         background-color: #ffffff;
-        padding: 1.2rem;
+        padding: 1rem;
         border-radius: 1rem;
-        box-shadow: 2px 2px 15px rgba(0, 0, 0, 0.15);
-        margin-bottom: 1.5rem;
-        font-size: 1.2rem;
+        box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.2rem;
+        font-size: 1.1rem;
         color: black;
     }
 
-    h1, h2, h3 {
-        color: #800000;
-    }
-
-    label {
-        color: #333 !important;
+    h1, h2, h3, label, .stTextInput label, .stNumberInput label, .stDateInput label {
+        color: #800000 !important;
     }
 
     section[data-testid="stSidebar"] {
@@ -54,6 +56,17 @@ st.markdown("""
         background-color: white !important;
         color: black !important;
     }
+
+    button[kind="primary"] {
+        background-color: #800000 !important;
+        color: white !important;
+        border: none;
+        border-radius: 8px;
+    }
+
+    button[kind="primary"]:hover {
+        background-color: #a00000 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -61,11 +74,10 @@ st.markdown("""
 st.sidebar.title("💈 Menú")
 st.sidebar.markdown("Navega entre las secciones del sistema:")
 
-# --- CONTENIDO ---
+# --- CONTENIDO CENTRAL ---
 with st.container():
     st.title("💈 Barbería - Panel Básico")
 
-    # --- REGISTRO DE CORTES ---
     st.subheader("📝 Registrar cortes del día")
     fecha = st.date_input("Fecha", date.today())
     cantidad = st.number_input("Cantidad de cortes", min_value=0, step=1)
@@ -78,7 +90,6 @@ with st.container():
         else:
             st.warning("⚠️ Ya existe un registro para esa fecha.")
 
-    # --- HISTORIAL ---
     st.subheader("📅 Historial de cortes registrados")
     registros = obtener_registros()
 
@@ -130,4 +141,5 @@ with st.container():
         f'<div class="info-card">💰 Ganancias acumuladas: <strong>₡{total_ganancias:.2f}</strong></div>',
         unsafe_allow_html=True
     )
+
 
