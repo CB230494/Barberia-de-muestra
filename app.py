@@ -6,98 +6,17 @@ import pandas as pd
 
 init_db()
 
-# --- ESTILOS MÓVIL Y CORRECCIONES VISUALES ---
+# --- Solo color de fondo azul para el menú lateral ---
 st.markdown("""
     <style>
-    html, body, .stApp {
-        background-color: #800000;
-        font-family: 'Segoe UI', sans-serif;
-        height: 100vh;
-        overflow-x: hidden;
-    }
-
-    .block-container {
-        background-color: white;
-        padding: 2rem 1.5rem;
-        border-radius: 0.75rem;
-        box-shadow: 0 0 20px rgba(0,0,0,0.2);
-        max-width: 600px;
-        margin: auto;
-        color: black;
-    }
-
-    .info-card {
-        background-color: #ffffff;
-        padding: 1rem;
-        border-radius: 1rem;
-        box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.1);
-        margin-bottom: 1.2rem;
-        font-size: 1.1rem;
-        color: black;
-    }
-
-    h1, h2, h3, label {
-        color: #800000 !important;
-    }
-
     section[data-testid="stSidebar"] {
         background-color: #002366;
     }
-
     section[data-testid="stSidebar"] h1,
     section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] div,
     section[data-testid="stSidebar"] span {
         color: white !important;
-    }
-
-    .stTable, .stDataFrame {
-        background-color: white !important;
-        color: black !important;
-    }
-
-    .stButton > button, form button {
-        background-color: #800000 !important;
-        color: white !important;
-        font-weight: bold !important;
-        border-radius: 8px !important;
-        padding: 0.5rem 1.2rem !important;
-        font-size: 1rem !important;
-        border: none !important;
-    }
-
-    form button:hover {
-        background-color: #a00000 !important;
-    }
-
-    .stAlert-success {
-        background-color: #d1f1d1 !important;
-        color: #134d13 !important;
-        font-weight: bold;
-    }
-
-    /* FAB - Botón flotante */
-    .fab-container {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 100;
-    }
-
-    .fab-button {
-        background-color: #800000;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 60px;
-        height: 60px;
-        font-size: 28px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
-        cursor: pointer;
-    }
-
-    .fab-button:hover {
-        background-color: #a00000;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -106,14 +25,10 @@ st.markdown("""
 st.sidebar.title("💈 Menú")
 st.sidebar.markdown("Navega entre las secciones del sistema:")
 
-# --- TÍTULO ---
+# --- TÍTULO PRINCIPAL ---
 st.title("💈 Barbería - Panel Básico")
 
-# --- FAB flotante para abrir el formulario ---
-st.markdown('<div class="fab-container"><button class="fab-button" onclick="window.location.hash = \'#formulario\'">✂️</button></div>', unsafe_allow_html=True)
-
-# --- FORMULARIO de registro ---
-st.markdown("<div id='formulario'></div>", unsafe_allow_html=True)
+# --- FORMULARIO PARA REGISTRAR CORTES ---
 with st.form("form_registro"):
     st.subheader("📝 Registrar cortes del día")
     fecha = st.date_input("Fecha", date.today())
@@ -167,16 +82,10 @@ if registros:
 else:
     st.info("Aún no se han registrado cortes.")
 
-# --- RESUMEN FINAL ---
+# --- RESUMEN GENERAL ---
 st.subheader("📊 Resumen general")
 total_cortes, total_ganancias = obtener_resumen()
-st.markdown(
-    f'<div class="info-card">✂️ Total de cortes realizados: <strong>{total_cortes}</strong></div>',
-    unsafe_allow_html=True
-)
-st.markdown(
-    f'<div class="info-card">💰 Ganancias acumuladas: <strong>₡{total_ganancias:.2f}</strong></div>',
-    unsafe_allow_html=True
-)
+st.markdown(f"✂️ **Total de cortes realizados:** {total_cortes}")
+st.markdown(f"💰 **Ganancias acumuladas:** ₡{total_ganancias:.2f}")
 
 
