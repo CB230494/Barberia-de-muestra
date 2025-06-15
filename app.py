@@ -1,7 +1,4 @@
 import streamlit as st
-from datetime import date
-import pandas as pd
-import sqlite3
 from database import (
     init_db,
     registrar_cortes,
@@ -10,158 +7,185 @@ from database import (
     obtener_cortes_por_mes,
     registrar_venta,
     obtener_ventas,
-    obtener_resumen_mensual
+    obtener_resumen_mensual,
+    registrar_producto,
+    obtener_productos,
+    eliminar_producto,
+    actualizar_producto
 )
+from datetime import date, datetime
+import calendar
 
+# Inicializar base de datos
 init_db()
 
-# Diccionario para nombres de meses en español
-meses_dict = {
-    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio",
-    7: "Julio", 8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
-}
-
-# Estilos CSS para el menú lateral
+# Estilo visual (rojo vino en menú lateral con efecto 3D)
 st.markdown("""
     <style>
-    section[data-testid="stSidebar"] {
-        background-color: #002366;
+    .main {
+        background-color: #f5f5f5;
     }
-    section[data-testid="stSidebar"] div.stRadio > label {
-        display: block;
-        padding: 0.5rem 1rem;
-        background-color: #800000;
-        color: white;
-        border-radius: 8px;
-        margin-bottom: 0.5rem;
+    .css-1v0mbdj.ef3psqc12 {
+        background-color: #730c18 !important;
+        border-radius: 10px;
+        color: white !important;
         font-weight: bold;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-        transition: 0.2s;
+        box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease-in-out;
     }
-    section[data-testid="stSidebar"] div.stRadio > label:hover {
-        background-color: #a00000;
-        cursor: pointer;
+    .css-1v0mbdj.ef3psqc12:hover {
+        background-color: #8a1222 !important;
+        transform: scale(1.02);
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.sidebar.title("💈 Menú")
-opcion = st.sidebar.radio("Ir a:", ["Registro de cortes", "Gestión mensual y ventas"])
-if opcion == "Registro de cortes":
-    st.title("💈 Registro de cortes")
+# Menú lateral
+st.sidebar.title("Menú")
+opcion = st.sidebar.radio("Ir a:", ["Registro de cortes", "Gestión mensual y ventas", "Inventario"])
 
-    with st.form("form_registro"):
-        st.subheader("📝 Registrar cortes del día")
-        fecha = st.date_input("Fecha", date.today())
+# Encabezado general
+st.markdown("## 💈 Sistema de Gestión para Barbería")
+# Registro de cortes (Parte básica)
+if opcion == "Registro de cortes":
+    st.subheader("✂️ Registro diario de cortes")
+
+    with st.form("registro_cortes"):
+        fecha = st.date_input("Fecha", value=date.today())
         cantidad = st.number_input("Cantidad de cortes", min_value=0, step=1)
         ganancias = st.number_input("Ganancia total del día (₡)", min_value=0.0, step=100.0, format="%.2f")
-        submit = st.form_submit_button("Guardar")
-        if submit:
-            exito = registrar_cortes(str(fecha), cantidad, ganancias)
+        registrar = st.form_submit_button("Guardar")
+
+        if registrar:
+            fecha_str = fecha.strftime("%Y-%m-%d")
+            exito = registrar_cortes(fecha_str, cantidad, ganancias)
             if exito:
-                st.success("✅ Registro guardado correctamente")
+                st.success("✅ Corte registrado correctamente")
             else:
-                st.warning("⚠️ Ya existe un registro para esa fecha.")
+                st.error("⚠️ Ya existe un registro para esta fecha.")
 
     st.subheader("📅 Historial de cortes registrados")
     registros = obtener_registros()
     if registros:
-        df = pd.DataFrame(registros, columns=["Fecha", "Cantidad de cortes", "Ganancias"])
-        st.table(df)
+        for reg in registros:
+            st.write(f"📌 **{reg[0]}** — Cortes: {reg[1]}, Ganancia: ₡{reg[2]:,.2f}")
     else:
-        st.info("Aún no se han registrado cortes.")
+        st.info("No hay cortes registrados todavía.")
 
     st.subheader("📊 Resumen general")
-    total_cortes, total_ganancias = obtener_resumen()
-    total_cortes = total_cortes or 0
-    total_ganancias = total_ganancias or 0.0
-    st.markdown(f"✂️ **Total de cortes realizados:** {total_cortes}")
-    st.markdown(f"💰 **Ganancias acumuladas:** ₡{total_ganancias:.2f}")
+    resumen = obtener_resumen()
+    if resumen and resumen[0]:
+        st.success(f"💇‍♂️ Total de cortes: **{resumen[0]}** — 💰 Ganancia acumulada: **₡{resumen[1]:,.2f}**")
+    else:
+        st.info("Aún no se han registrado datos para mostrar el resumen.")
 elif opcion == "Gestión mensual y ventas":
-    st.title("📦 Barbería - Parte Media del Proyecto")
-    st.caption("Esta sección incluye todo lo del módulo básico (registro de cortes) y añade: resumen mensual y control de ventas.")
+    st.subheader("📆 Gestión mensual y ventas de productos")
 
-    st.subheader("📅 Filtro mensual de cortes")
-    col1, col2 = st.columns(2)
-    with col1:
-        anio = st.selectbox("Año", list(range(2023, date.today().year + 1)))
-    with col2:
-        mes_nombre = st.selectbox("Mes", list(meses_dict.values()))
-        mes = [k for k, v in meses_dict.items() if v == mes_nombre][0]
+    hoy = date.today()
+    anio_actual = hoy.year
+    mes_actual = hoy.month
 
-    cortes_mes = obtener_cortes_por_mes(anio, mes)
-    if cortes_mes:
-        df_cortes = pd.DataFrame(cortes_mes, columns=["Fecha", "Cantidad de cortes", "Ganancias"])
-        st.table(df_cortes)
-    else:
-        st.info("No hay cortes registrados en ese mes.")
+    meses = {
+        1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+        5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+        9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+    }
 
-    st.subheader("🔎 Buscar ventas por producto")
-    filtro = st.text_input("Nombre del producto (buscar):").strip().lower()
+    anio = st.selectbox("Año", list(range(anio_actual, anio_actual - 5, -1)))
+    mes = st.selectbox("Mes", list(meses.keys()), format_func=lambda x: meses[x])
 
-    st.subheader("🧴 Registro de ventas de productos")
-    with st.form("form_ventas"):
-        fecha_venta = st.date_input("Fecha de venta", date.today())
-        producto = st.text_input("Producto vendido (ej. cera, crema)")
-        cantidad = st.number_input("Cantidad vendida", min_value=1, step=1)
-        total = st.number_input("Total vendido (₡)", min_value=0.0, step=100.0, format="%.2f")
-        enviar_venta = st.form_submit_button("Registrar venta")
-        if enviar_venta and producto:
-            registrar_venta(str(fecha_venta), producto, cantidad, total)
-            st.success("✅ Venta registrada exitosamente")
-
-    st.subheader("🧾 Historial de ventas")
-    ventas = obtener_ventas()
-    if filtro:
-        ventas = [v for v in ventas if filtro in v[1].lower()]
-
-    if ventas:
-        for i, (fecha, producto, cantidad, total) in enumerate(ventas):
-            col1, col2, col3, col4, col5, col6 = st.columns([2, 2, 1, 1, 1, 1])
-            with col1: st.write(f"📅 {fecha}")
-            with col2: st.write(f"🧴 {producto}")
-            with col3: st.write(f"{cantidad}")
-            with col4: st.write(f"₡{total:.2f}")
-            with col5:
-                if st.button("✏️", key=f"edit_{i}"):
-                    with st.form(f"form_edit_{i}"):
-                        new_fecha = st.date_input("Fecha", date.fromisoformat(fecha), key=f"f_{i}")
-                        new_producto = st.text_input("Producto", value=producto, key=f"p_{i}")
-                        new_cantidad = st.number_input("Cantidad", value=int(cantidad), key=f"c_{i}")
-                        new_total = st.number_input("Total", value=float(total), format="%.2f", key=f"t_{i}")
-                        actualizar = st.form_submit_button("Actualizar")
-                        if actualizar:
-                            conn = sqlite3.connect("barberia.db")
-                            cursor = conn.cursor()
-                            cursor.execute("DELETE FROM ventas WHERE fecha = ? AND producto = ? AND cantidad = ? AND total = ?",
-                                           (fecha, producto, cantidad, total))
-                            cursor.execute("INSERT INTO ventas (fecha, producto, cantidad, total) VALUES (?, ?, ?, ?)",
-                                           (str(new_fecha), new_producto, new_cantidad, new_total))
-                            conn.commit()
-                            conn.close()
-                            st.success("✅ Venta actualizada")
-                            st.experimental_rerun()
-            with col6:
-                if st.button("🗑️", key=f"del_{i}"):
-                    conn = sqlite3.connect("barberia.db")
-                    cursor = conn.cursor()
-                    cursor.execute("DELETE FROM ventas WHERE fecha = ? AND producto = ? AND cantidad = ? AND total = ?",
-                                   (fecha, producto, cantidad, total))
-                    conn.commit()
-                    conn.close()
-                    st.success("✅ Venta eliminada")
-                    st.experimental_rerun()
-    else:
-        st.info("No hay ventas para mostrar.")
-
-    st.subheader("📊 Resumen mensual combinado")
     resumen = obtener_resumen_mensual(anio, mes)
-    resumen = {k: v or 0 for k, v in resumen.items()}
-    st.markdown(f"- ✂️ Cortes realizados: **{resumen['cortes_realizados']}**")
-    st.markdown(f"- 💰 Ganancia por cortes: **₡{resumen['ganancia_cortes']:.2f}**")
-    st.markdown(f"- 🧴 Productos vendidos: **{resumen['productos_vendidos']}**")
-    st.markdown(f"- 💸 Ganancia por ventas: **₡{resumen['ganancia_ventas']:.2f}**")
 
+    st.subheader(f"📊 Resumen de {meses[mes]} {anio}")
+    if resumen["cortes_realizados"]:
+        st.write(f"💈 Cortes: **{resumen['cortes_realizados']}**")
+        st.write(f"💰 Ganancia por cortes: **₡{resumen['ganancia_cortes']:,.2f}**")
+        st.write(f"🧴 Productos vendidos: **{resumen['productos_vendidos']}**")
+        st.write(f"💵 Ganancia por ventas: **₡{resumen['ganancia_ventas']:,.2f}**")
+    else:
+        st.info("No hay registros para este mes.")
 
+    st.subheader("🧾 Registrar venta de productos")
+    with st.form("form_venta"):
+        fecha_venta = st.date_input("Fecha", value=date.today(), key="venta_fecha")
+        producto = st.text_input("Producto")
+        cantidad = st.number_input("Cantidad", min_value=1, step=1)
+        total = st.number_input("Total (₡)", min_value=0.0, step=100.0, format="%.2f")
+        registrar_v = st.form_submit_button("Registrar venta")
+        if registrar_v and producto:
+            registrar_venta(fecha_venta.strftime("%Y-%m-%d"), producto, cantidad, total)
+            st.success("✅ Venta registrada correctamente")
+            st.experimental_rerun()
+
+    st.subheader("📋 Historial de ventas")
+    ventas = obtener_ventas()
+    if ventas:
+        filtro = st.text_input("🔎 Filtrar por producto")
+        for i, v in enumerate(ventas):
+            if filtro.lower() in v[1].lower():
+                col1, col2, col3, col4, col5 = st.columns([2, 2, 1, 1, 1])
+                col1.write(f"📅 {v[0]}")
+                col2.write(f"🧴 {v[1]}")
+                col3.write(f"{v[2]} ud.")
+                col4.write(f"₡{v[3]:,.2f}")
+                with col5:
+                    if st.button("🗑️", key=f"del_venta_{i}"):
+                        conn = sqlite3.connect("barberia.db")
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM ventas WHERE fecha = ? AND producto = ? AND cantidad = ? AND total = ? LIMIT 1",
+                                       (v[0], v[1], v[2], v[3]))
+                        conn.commit()
+                        conn.close()
+                        st.success("✅ Venta eliminada")
+                        st.experimental_rerun()
+    else:
+        st.info("No hay ventas registradas.")
+elif opcion == "Inventario":
+    st.subheader("📦 Gestión de Inventario")
+
+    st.markdown("Registra productos usados o vendidos, como cremas, ceras, etc.")
+
+    with st.form("form_inventario"):
+        nombre = st.text_input("Nombre del producto")
+        tipo = st.selectbox("Tipo", ["Uso interno", "Venta"])
+        cantidad = st.number_input("Cantidad disponible", min_value=0, step=1)
+        precio_unitario = st.number_input("Precio unitario (₡)", min_value=0.0, step=100.0, format="%.2f")
+        registrar_p = st.form_submit_button("Agregar al inventario")
+        if registrar_p and nombre:
+            registrar_producto(nombre, tipo, cantidad, precio_unitario)
+            st.success("✅ Producto registrado")
+            st.experimental_rerun()
+
+    st.subheader("📋 Productos en inventario")
+
+    productos = obtener_productos()
+    if productos:
+        for i, p in enumerate(productos):
+            col1, col2, col3, col4, col5 = st.columns([2, 2, 1, 1, 1])
+            col1.write(f"🧴 {p[0]}")
+            col2.write(f"🔖 {p[1]}")
+            col3.write(f"📦 {p[2]} ud.")
+            col4.write(f"₡{p[3]:,.2f}")
+
+            if p[2] < 3:
+                st.warning(f"⚠️ Bajo stock: {p[0]} tiene solo {p[2]} unidades")
+
+            with col5:
+                if st.button("🗑️", key=f"del_inv_{i}"):
+                    eliminar_producto(p[0], p[1])
+                    st.success("✅ Producto eliminado")
+                    st.experimental_rerun()
+
+                with st.expander("✏️ Editar", expanded=False):
+                    nuevo_nombre = st.text_input("Nuevo nombre", value=p[0], key=f"nomb_{i}")
+                    nuevo_tipo = st.selectbox("Nuevo tipo", ["Uso interno", "Venta"], index=0 if p[1] == "Uso interno" else 1, key=f"tipo_{i}")
+                    nueva_cant = st.number_input("Nueva cantidad", value=p[2], step=1, key=f"cant_{i}")
+                    nuevo_precio = st.number_input("Nuevo precio (₡)", value=p[3], step=100.0, format="%.2f", key=f"prec_{i}")
+                    if st.button("Guardar cambios", key=f"edit_inv_{i}"):
+                        actualizar_producto(p[0], p[1], nuevo_nombre, nuevo_tipo, nueva_cant, nuevo_precio)
+                        st.success("✅ Producto actualizado")
+                        st.experimental_rerun()
+    else:
+        st.info("No hay productos en el inventario.")
 
 
