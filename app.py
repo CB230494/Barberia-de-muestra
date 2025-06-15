@@ -19,12 +19,11 @@ from database import (
 )
 from datetime import date
 import calendar
-import sqlite3
 
-# Inicializar base de datos
+# Inicializar la base de datos
 init_db()
 
-# Estilo CSS
+# Estilo visual
 st.markdown("""
     <style>
     section[data-testid="stSidebar"] {
@@ -34,7 +33,7 @@ st.markdown("""
         color: white !important;
     }
     .stButton > button {
-        background-color: #005caa;
+        background-color: #8B0000;
         color: white;
         font-weight: bold;
         border-radius: 8px;
@@ -42,7 +41,7 @@ st.markdown("""
         border: none;
     }
     .stButton > button:hover {
-        background-color: #0b72c1;
+        background-color: #B22222;
     }
     html, body, .stApp {
         background-color: white;
@@ -52,10 +51,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Menú lateral
-st.sidebar.title("Menú")
+st.sidebar.title("📋 Menú")
 opcion = st.sidebar.radio("Ir a:", ["Registro de cortes", "Gestión mensual y ventas", "Inventario"])
 
-# Encabezado principal
+# Título principal
 st.markdown("## 💈 Sistema de Gestión para Barbería")
 if opcion == "Registro de cortes":
     st.subheader("✂️ Registro diario de cortes")
@@ -71,7 +70,7 @@ if opcion == "Registro de cortes":
             exito = registrar_cortes(fecha_str, cantidad, ganancias)
             if exito:
                 st.success("✅ Corte registrado correctamente")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("⚠️ Ya existe un registro para esta fecha.")
 
@@ -93,12 +92,12 @@ if opcion == "Registro de cortes":
                         if actualizar:
                             actualizar_corte(fecha, nueva_cantidad, nueva_ganancia)
                             st.success("✅ Registro actualizado")
-                            st.experimental_rerun()
+                            st.rerun()
             with col4:
                 if st.button("🗑️", key=f"del_corte_{i}"):
                     eliminar_corte(fecha)
                     st.success("✅ Registro eliminado")
-                    st.experimental_rerun()
+                    st.rerun()
     else:
         st.info("No hay cortes registrados todavía.")
 
@@ -158,7 +157,7 @@ elif opcion == "Gestión mensual y ventas":
         if registrar:
             registrar_venta(fecha_venta.strftime("%Y-%m-%d"), producto, cantidad, total)
             st.success("✅ Venta registrada")
-            st.experimental_rerun()
+            st.rerun()
 
     st.markdown("## ➕ Registrar nuevo gasto")
     with st.form("form_gasto"):
@@ -169,44 +168,48 @@ elif opcion == "Gestión mensual y ventas":
         if guardar_gasto:
             registrar_gasto(fecha_gasto.strftime("%Y-%m-%d"), descripcion, monto)
             st.success("✅ Gasto registrado")
-            st.experimental_rerun()
+            st.rerun()
 elif opcion == "Inventario":
     st.subheader("📦 Inventario de productos")
 
     st.markdown("### ➕ Registrar nuevo producto")
     with st.form("form_nuevo_producto"):
         nombre = st.text_input("Nombre del producto")
-        cantidad = st.number_input("Cantidad disponible", min_value=0, step=1)
-        registrar = st.form_submit_button("Guardar producto")
-        if registrar:
-            registrar_producto(nombre, cantidad)
-            st.success("✅ Producto registrado")
-            st.experimental_rerun()
+        cantidad = st.number_input("Cantidad en stock", min_value=0, step=1)
+        costo = st.number_input("Costo por unidad (₡)", min_value=0.0, step=100.0, format="%.2f")
+        guardar_producto = st.form_submit_button("Guardar producto")
+        if guardar_producto:
+            registrar_producto(nombre, cantidad, costo)
+            st.success("✅ Producto registrado correctamente")
+            st.rerun()
 
-    st.markdown("### 📋 Lista de productos")
+    st.markdown("### 📋 Lista de productos registrados")
     productos = obtener_productos()
     if productos:
-        for i, (id_prod, nombre, cantidad) in enumerate(productos):
+        for i, (nombre, cantidad, costo) in enumerate(productos):
             col1, col2, col3, col4 = st.columns([4, 2, 1, 1])
-            alerta = "⚠️" if cantidad < 3 else ""
-            col1.write(f"{alerta} {nombre}")
-            col2.write(f"Stock: {cantidad}")
-            with col3:
+            alerta = " 🔴" if cantidad < 3 else ""
+            col1.markdown(f"🧴 **{nombre}**{alerta}")
+            col2.markdown(f"Stock: {cantidad}")
+            col3.markdown(f"₡{costo:,.2f}")
+
+            with col4:
                 if st.button("✏️", key=f"edit_prod_{i}"):
-                    with st.form(f"form_edit_prod_{i}"):
-                        nuevo_nombre = st.text_input("Nombre", value=nombre, key=f"nom_{i}")
-                        nueva_cantidad = st.number_input("Cantidad", value=cantidad, min_value=0, step=1, key=f"cant_{i}")
+                    with st.form(f"form_edit_producto_{i}"):
+                        nueva_cantidad = st.number_input("Nueva cantidad", value=cantidad, min_value=0, key=f"cant_{i}")
+                        nuevo_costo = st.number_input("Nuevo costo", value=costo, min_value=0.0, key=f"costo_{i}", format="%.2f")
                         actualizar = st.form_submit_button("Actualizar")
                         if actualizar:
-                            actualizar_producto(id_prod, nuevo_nombre, nueva_cantidad)
+                            actualizar_producto(nombre, nueva_cantidad, nuevo_costo)
                             st.success("✅ Producto actualizado")
-                            st.experimental_rerun()
-            with col4:
+                            st.rerun()
+
                 if st.button("🗑️", key=f"del_prod_{i}"):
-                    eliminar_producto(id_prod)
+                    eliminar_producto(nombre)
                     st.success("✅ Producto eliminado")
-                    st.experimental_rerun()
+                    st.rerun()
     else:
-        st.info("No hay productos en el inventario.")
+        st.info("No hay productos registrados.")
+
 
 
