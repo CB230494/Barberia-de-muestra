@@ -112,16 +112,20 @@ elif opcion == "Gestión mensual y ventas":
     anio = st.selectbox("Año", list(range(anio_actual, anio_actual - 5, -1)))
     mes = st.selectbox("Mes", list(meses.keys()), format_func=lambda x: meses[x])
 
-    resumen = obtener_resumen_mensual(anio, mes)
+resumen = obtener_resumen_mensual(anio, mes)
 
-    st.subheader(f"📊 Resumen de {meses[mes]} {anio}")
-    if resumen["cortes_realizados"]:
-        st.write(f"💈 Cortes: **{resumen['cortes_realizados']}**")
-        st.write(f"💰 Ganancia por cortes: **₡{resumen['ganancia_cortes']:,.2f}**")
-        st.write(f"🧴 Productos vendidos: **{resumen['productos_vendidos']}**")
-        st.write(f"💵 Ganancia por ventas: **₡{resumen['ganancia_ventas']:,.2f}**")
-    else:
-        st.info("No hay registros para este mes.")
+# Valores seguros en caso de que alguno sea None
+cortes = resumen.get("cortes_realizados") or 0
+gan_cortes = resumen.get("ganancia_cortes") or 0.0
+productos = resumen.get("productos_vendidos") or 0
+gan_ventas = resumen.get("ganancia_ventas") or 0.0
+
+st.subheader(f"📊 Resumen de {meses[mes]} {anio}")
+st.write(f"💈 Cortes: **{cortes}**")
+st.write(f"💰 Ganancia por cortes: **₡{gan_cortes:,.2f}**")
+st.write(f"🧴 Productos vendidos: **{productos}**")
+st.write(f"💵 Ganancia por ventas: **₡{gan_ventas:,.2f}**")
+
 
     st.subheader("🧾 Registrar venta de productos")
     with st.form("form_venta"):
