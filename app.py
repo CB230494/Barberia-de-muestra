@@ -5,77 +5,81 @@ from datetime import date
 # Inicializar base de datos
 init_db()
 
-# --- Estilos personalizados ---
+# --- Estilos personalizados con franjas y colores ---
 st.markdown("""
     <style>
-    /* Fondo degradado */
+    /* Fondo principal con franjas en la esquina superior derecha */
     .stApp {
-        background: linear-gradient(to bottom right, #f2f6ff, #e6e6ff);
+        background: linear-gradient(to top right, #ffffff 0%, #ffffff 75%, #ff0000 75%, #ff0000 100%);
         color: #000000;
+        font-family: 'Segoe UI', sans-serif;
     }
 
     /* Tarjetas de resumen */
     .info-card {
-        background-color: #ffffff;
+        background-color: white;
         padding: 1.2rem;
         border-radius: 1rem;
-        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
-        margin-bottom: 1rem;
+        box-shadow: 2px 2px 15px rgba(0, 0, 0, 0.15);
+        margin-bottom: 1.5rem;
         font-size: 1.2rem;
     }
 
-    /* Títulos */
     h1, h2, h3 {
-        color: #001F54;
+        color: #B30000;
     }
 
-    /* Sidebar */
+    /* Sidebar fondo azul y letras blancas */
     section[data-testid="stSidebar"] {
         background-color: #002366;
     }
-    .css-1d391kg {  /* encabezado sidebar */
-        color: white;
+
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] div,
+    section[data-testid="stSidebar"] span {
+        color: white !important;
     }
-    .css-1v3fvcr {  /* texto en sidebar */
-        color: white;
-    }
+
     </style>
 """, unsafe_allow_html=True)
 
 # --- Menú lateral ---
-st.sidebar.title("Menú 💈")
-opcion = st.sidebar.radio("Ir a:", ["Resumen general", "Registrar cortes", "Historial de cortes"])
+st.sidebar.title("💈 Menú")
+st.sidebar.markdown("Navega entre las secciones del sistema:")
 
-# --- Página: Resumen general ---
-if opcion == "Resumen general":
-    st.title("💈 Barbería - Panel General")
-    total_cortes, total_ganancias = obtener_resumen()
-    
-    st.markdown('<div class="info-card">✂️ Total de cortes realizados: <strong>{}</strong></div>'.format(total_cortes or 0), unsafe_allow_html=True)
-    st.markdown('<div class="info-card">💰 Ganancias acumuladas: <strong>₡{:,.2f}</strong></div>'.format(total_ganancias or 0), unsafe_allow_html=True)
+# Título principal
+st.title("💈 Barbería - Panel Básico")
 
-# --- Página: Registro ---
-elif opcion == "Registrar cortes":
-    st.title("📅 Registrar cortes del día")
-    
-    fecha = st.date_input("Fecha", date.today())
-    cantidad = st.number_input("Cantidad de cortes", min_value=0, step=1)
-    ganancias = st.number_input("Ganancia total del día (₡)", min_value=0.0, step=100.0, format="%.2f")
+# --- Mostrar resumen general ---
+st.subheader("📊 Resumen general")
 
-    if st.button("Guardar"):
-        exito = registrar_cortes(str(fecha), cantidad, ganancias)
-        if exito:
-            st.success("✅ Registro guardado correctamente")
-        else:
-            st.warning("⚠️ Ya existe un registro para esa fecha.")
+total_cortes, total_ganancias = obtener_resumen()
+st.markdown(f'<div class="info-card">✂️ Total de cortes realizados: <strong>{total_cortes or 0}</strong></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="info-card">💰 Ganancias acumuladas: <strong>₡{total_ganancias:,.2f}</strong></div>', unsafe_allow_html=True)
 
-# --- Página: Historial ---
-elif opcion == "Historial de cortes":
-    st.title("📊 Historial de cortes")
-    registros = obtener_registros()
-    if registros:
-        st.table(registros)
+# --- Registrar nuevo corte ---
+st.subheader("📝 Registrar cortes del día")
+
+fecha = st.date_input("Fecha", date.today())
+cantidad = st.number_input("Cantidad de cortes", min_value=0, step=1)
+ganancias = st.number_input("Ganancia total del día (₡)", min_value=0.0, step=100.0, format="%.2f")
+
+if st.button("Guardar"):
+    exito = registrar_cortes(str(fecha), cantidad, ganancias)
+    if exito:
+        st.success("✅ Registro guardado correctamente")
     else:
-        st.info("Aún no se han registrado cortes.")
+        st.warning("⚠️ Ya existe un registro para esa fecha.")
+
+# --- Historial de cortes ---
+st.subheader("📅 Historial de cortes registrados")
+
+registros = obtener_registros()
+if registros:
+    st.table(registros)
+else:
+    st.info("Aún no se han registrado cortes.")
+
 
 
