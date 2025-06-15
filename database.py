@@ -1,53 +1,33 @@
 import sqlite3
-from datetime import datetime
+from datetime import date
 
 def init_db():
-    conn = sqlite3.connect("citas.db")
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS citas (
+    conn = sqlite3.connect("barberia.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cortes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
             fecha TEXT NOT NULL,
-            hora TEXT NOT NULL
+            cantidad_cortes INTEGER NOT NULL,
+            ganancias REAL NOT NULL
         )
-    ''')
+    """)
     conn.commit()
     conn.close()
 
-def registrar_cita(nombre, fecha, hora):
-    conn = sqlite3.connect("citas.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO citas (nombre, fecha, hora) VALUES (?, ?, ?)", (nombre, fecha, hora))
+def registrar_cortes(fecha, cantidad_cortes, ganancias):
+    conn = sqlite3.connect("barberia.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO cortes (fecha, cantidad_cortes, ganancias) VALUES (?, ?, ?)",
+                   (fecha, cantidad_cortes, ganancias))
     conn.commit()
     conn.close()
 
-def obtener_citas():
-    conn = sqlite3.connect("citas.db")
-    c = conn.cursor()
-    c.execute("SELECT nombre, fecha, hora FROM citas ORDER BY fecha, hora")
-    citas = c.fetchall()
+def obtener_registros():
+    conn = sqlite3.connect("barberia.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT fecha, cantidad_cortes, ganancias FROM cortes ORDER BY fecha DESC")
+    datos = cursor.fetchall()
     conn.close()
-    return citas
+    return datos
 
-def obtener_citas_por_fecha(fecha):
-    conn = sqlite3.connect("citas.db")
-    c = conn.cursor()
-    c.execute("SELECT hora FROM citas WHERE fecha = ?", (fecha,))
-    horas_ocupadas = [fila[0] for fila in c.fetchall()]
-    conn.close()
-    return horas_ocupadas
-
-def bloquear_hora(fecha, hora):
-    conn = sqlite3.connect("citas.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO citas (nombre, fecha, hora) VALUES (?, ?, ?)", ("BLOQUEADO", fecha, hora))
-    conn.commit()
-    conn.close()
-
-def desbloquear_hora(fecha, hora):
-    conn = sqlite3.connect("citas.db")
-    c = conn.cursor()
-    c.execute("DELETE FROM citas WHERE fecha = ? AND hora = ? AND nombre = ?", (fecha, hora, "BLOQUEADO"))
-    conn.commit()
-    conn.close()
