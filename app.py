@@ -23,13 +23,7 @@ init_db()
 # Estilos personalizados
 st.markdown("""
     <style>
-    html, body, .main {
-        background-color: #4b0f1f;
-        color: white;
-    }
-    .stApp {
-        background-color: #4b0f1f;
-    }
+    /* Botones */
     .stButton>button {
         background-color: #005caa;
         color: white;
@@ -41,6 +35,8 @@ st.markdown("""
     .stButton>button:hover {
         background-color: #0b72c1;
     }
+
+    /* Menú lateral azul */
     .css-1v0mbdj.ef3psqc12 {
         background-color: #005caa !important;
         border-radius: 10px;
@@ -53,11 +49,11 @@ st.markdown("""
         background-color: #0b72c1 !important;
         transform: scale(1.02);
     }
-    .block-container {
-        padding: 1rem 2rem;
-    }
-    .css-18e3th9 {
-        padding-top: 2rem;
+
+    /* Eliminar color de fondo general */
+    html, body, .main, .stApp {
+        background-color: white;
+        color: black;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -68,6 +64,7 @@ opcion = st.sidebar.radio("Ir a:", ["Registro de cortes", "Gestión mensual y ve
 
 # Encabezado general
 st.markdown("## 💈 Sistema de Gestión para Barbería")
+
 
 # Registro de cortes (Parte básica)
 if opcion == "Registro de cortes":
