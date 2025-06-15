@@ -6,18 +6,28 @@ def init_db():
     crear_tabla_ventas()
     crear_tabla_inventario()
     crear_tabla_gastos()
+
+def conectar():
+    return sqlite3.connect("barberia.db")
+
 def crear_tabla_cortes():
-    conn = sqlite3.connect("barberia.db")
+    conn = conectar()
     c = conn.cursor()
     c.execute("""
         CREATE TABLE IF NOT EXISTS cortes (
             fecha TEXT PRIMARY KEY,
             cantidad INTEGER,
-            ganancia REAL
+            ganancia REAL DEFAULT 0.0
         )
     """)
+    # Validar si falta la columna ganancia
+    c.execute("PRAGMA table_info(cortes);")
+    columnas = [col[1] for col in c.fetchall()]
+    if "ganancia" not in columnas:
+        c.execute("ALTER TABLE cortes ADD COLUMN ganancia REAL DEFAULT 0.0")
     conn.commit()
     conn.close()
+
 
 def registrar_cortes(fecha, cantidad, ganancia):
     try:
