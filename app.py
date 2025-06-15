@@ -4,16 +4,14 @@ from datetime import date
 
 init_db()
 
-# --- Estilos personalizados con 4 franjas vino (laterales, superior e inferior) ---
+# --- Estilos: solo franjas laterales vino ---
 st.markdown("""
     <style>
     .stApp {
         background-color: #ffffff;
         font-family: 'Segoe UI', sans-serif;
         background-image:
-            linear-gradient(to right, #800000 0%, #800000 15%, transparent 15%, transparent 85%, #800000 85%, #800000 100%),
-            linear-gradient(to bottom, #800000 0%, #800000 8%, transparent 8%, transparent 92%, #800000 92%, #800000 100%),
-            linear-gradient(to left, #800000 0%, #800000 15%, transparent 15%);
+            linear-gradient(to right, #800000 0%, #800000 15%, transparent 15%, transparent 85%, #800000 85%, #800000 100%);
         background-repeat: no-repeat;
         background-size: cover;
     }
@@ -94,3 +92,4 @@ if registros:
     st.table(registros)
 else:
     st.info("Aún no se han registrado cortes.")
+
