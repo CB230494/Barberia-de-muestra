@@ -1,163 +1,212 @@
+import streamlit as st
+from database import (
+    init_db,
+    registrar_cortes,
+    obtener_registros,
+    obtener_resumen,
+    obtener_cortes_por_mes,
+    eliminar_corte,
+    actualizar_corte,
+    registrar_venta,
+    obtener_ventas,
+    obtener_resumen_mensual,
+    registrar_producto,
+    obtener_productos,
+    eliminar_producto,
+    actualizar_producto,
+    registrar_gasto,
+    obtener_gastos_por_mes
+)
+from datetime import date
 import sqlite3
+import calendar
 
-def init_db():
-    crear_tabla_cortes()
-    crear_tabla_ventas()
-    crear_tabla_inventario()
-    crear_tabla_gastos()
-def crear_tabla_cortes():
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS cortes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha TEXT NOT NULL UNIQUE,
-            cantidad_cortes INTEGER NOT NULL,
-            ganancias REAL NOT NULL
-        )
-    """)
-    conn.commit()
-    conn.close()
+# Inicializar base de datos
+init_db()
 
-def registrar_cortes(fecha, cantidad, ganancias):
-    try:
-        conn = sqlite3.connect("barberia.db")
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO cortes (fecha, cantidad_cortes, ganancias) VALUES (?, ?, ?)",
-                       (fecha, cantidad, ganancias))
-        conn.commit()
-        return True
-    except:
-        return False
-    finally:
-        conn.close()
-
-def obtener_registros():
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT fecha, cantidad_cortes, ganancias FROM cortes ORDER BY fecha DESC")
-    registros = cursor.fetchall()
-    conn.close()
-    return registros
-
-def obtener_resumen():
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT SUM(cantidad_cortes), SUM(ganancias) FROM cortes")
-    resumen = cursor.fetchone()
-    conn.close()
-    return resumen
-
-def obtener_cortes_por_mes(anio, mes):
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT fecha, cantidad_cortes, ganancias FROM cortes
-        WHERE strftime('%Y', fecha) = ? AND strftime('%m', fecha) = ?
-        ORDER BY fecha DESC
-    """, (str(anio), f"{mes:02d}"))
-    cortes_mes = cursor.fetchall()
-    conn.close()
-    return cortes_mes
-
-def eliminar_corte(fecha):
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM cortes WHERE fecha = ?", (fecha,))
-    conn.commit()
-    conn.close()
-
-def actualizar_corte(fecha_original, nueva_cantidad, nueva_ganancia):
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE cortes
-        SET cantidad_cortes = ?, ganancias = ?
-        WHERE fecha = ?
-    """, (nueva_cantidad, nueva_ganancia, fecha_original))
-    conn.commit()
-    conn.close()
-def crear_tabla_ventas():
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS ventas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha TEXT,
-            producto TEXT,
-            cantidad INTEGER,
-            total REAL
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-def registrar_venta(fecha, producto, cantidad, total):
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO ventas (fecha, producto, cantidad, total) VALUES (?, ?, ?, ?)",
-                   (fecha, producto, cantidad, total))
-    conn.commit()
-    conn.close()
-
-def obtener_ventas():
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT fecha, producto, cantidad, total FROM ventas ORDER BY fecha DESC")
-    ventas = cursor.fetchall()
-    conn.close()
-    return ventas
-def crear_tabla_gastos():
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS gastos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha TEXT,
-            descripcion TEXT,
-            monto REAL
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-def registrar_gasto(fecha, descripcion, monto):
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO gastos (fecha, descripcion, monto) VALUES (?, ?, ?)",
-                   (fecha, descripcion, monto))
-    conn.commit()
-    conn.close()
-
-def obtener_gastos_por_mes(anio, mes):
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT fecha, descripcion, monto FROM gastos
-        WHERE strftime('%Y', fecha) = ? AND strftime('%m', fecha) = ?
-        ORDER BY fecha DESC
-    """, (str(anio), f"{mes:02d}"))
-    gastos = cursor.fetchall()
-    conn.close()
-    return gastos
-def obtener_resumen_mensual(anio, mes):
-    conn = sqlite3.connect("barberia.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT SUM(cantidad_cortes), SUM(ganancias) FROM cortes WHERE strftime('%Y', fecha) = ? AND strftime('%m', fecha) = ?", (str(anio), f"{mes:02d}"))
-    cortes = cursor.fetchone()
-
-    cursor.execute("SELECT SUM(cantidad), SUM(total) FROM ventas WHERE strftime('%Y', fecha) = ? AND strftime('%m', fecha) = ?", (str(anio), f"{mes:02d}"))
-    ventas = cursor.fetchone()
-
-    cursor.execute("SELECT SUM(monto) FROM gastos WHERE strftime('%Y', fecha) = ? AND strftime('%m', fecha) = ?", (str(anio), f"{mes:02d}"))
-    gastos = cursor.fetchone()
-
-    conn.close()
-
-    return {
-        "cortes_realizados": cortes[0] if cortes[0] else 0,
-        "ganancia_cortes": cortes[1] if cortes[1] else 0.0,
-        "productos_vendidos": ventas[0] if ventas[0] else 0,
-        "ganancia_ventas": ventas[1] if ventas[1] else 0.0,
-        "total_gastos": gastos[0] if gastos[0] else 0.0
+# Estilo CSS
+st.markdown("""
+    <style>
+    section[data-testid="stSidebar"] {
+        background-color: #002244 !important;
     }
+    section[data-testid="stSidebar"] * {
+        color: white !important;
+    }
+    .stButton > button {
+        background-color: #005caa;
+        color: white;
+        font-weight: bold;
+        border-radius: 8px;
+        padding: 0.5em 1em;
+        border: none;
+    }
+    .stButton > button:hover {
+        background-color: #0b72c1;
+    }
+    html, body, .stApp {
+        background-color: white;
+        color: black;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Menú lateral
+st.sidebar.title("Menú")
+opcion = st.sidebar.radio("Ir a:", ["Registro de cortes", "Gestión mensual y ventas", "Inventario"])
+
+# Encabezado principal
+st.markdown("## 💈 Sistema de Gestión para Barbería")
+if opcion == "Registro de cortes":
+    st.subheader("✂️ Registro diario de cortes")
+
+    with st.form("registro_cortes"):
+        fecha = st.date_input("Fecha", value=date.today())
+        cantidad = st.number_input("Cantidad de cortes", min_value=0, step=1)
+        ganancias = st.number_input("Ganancia total del día (₡)", min_value=0.0, step=100.0, format="%.2f")
+        registrar = st.form_submit_button("Guardar")
+
+        if registrar:
+            fecha_str = fecha.strftime("%Y-%m-%d")
+            exito = registrar_cortes(fecha_str, cantidad, ganancias)
+            if exito:
+                st.success("✅ Corte registrado correctamente")
+                st.experimental_rerun()
+            else:
+                st.error("⚠️ Ya existe un registro para esta fecha.")
+
+    st.subheader("📅 Historial de cortes registrados")
+    registros = obtener_registros()
+    if registros:
+        for i, (fecha, cantidad, ganancia) in enumerate(registros):
+            col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+            col1.markdown(f"📌 **{fecha}** — Cortes: {cantidad}, Ganancia: ₡{ganancia:,.2f}")
+            with col3:
+                if st.button("✏️", key=f"edit_corte_{i}"):
+                    with st.form(f"form_edit_corte_{i}"):
+                        nueva_cantidad = st.number_input("Nueva cantidad de cortes", min_value=0, value=cantidad, key=f"cant_{i}")
+                        nueva_ganancia = st.number_input("Nueva ganancia", min_value=0.0, value=ganancia, format="%.2f", key=f"gan_{i}")
+                        actualizar = st.form_submit_button("Actualizar")
+                        if actualizar:
+                            actualizar_corte(fecha, nueva_cantidad, nueva_ganancia)
+                            st.success("✅ Registro actualizado")
+                            st.experimental_rerun()
+            with col4:
+                if st.button("🗑️", key=f"del_corte_{i}"):
+                    eliminar_corte(fecha)
+                    st.success("✅ Registro eliminado")
+                    st.experimental_rerun()
+    else:
+        st.info("No hay cortes registrados todavía.")
+
+    st.subheader("📊 Resumen general")
+    resumen = obtener_resumen()
+    total_cortes = resumen[0] or 0
+    total_ganancias = resumen[1] or 0.0
+    st.success(f"💇‍♂️ Total de cortes: **{total_cortes}** — 💰 Ganancia acumulada: **₡{total_ganancias:,.2f}**")
+elif opcion == "Gestión mensual y ventas":
+    st.subheader("📅 Gestión mensual de cortes, ventas y gastos")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        anio = st.selectbox("Seleccione el año", options=list(range(2022, date.today().year + 1)), index=1)
+    with col2:
+        mes = st.selectbox("Seleccione el mes", options=list(enumerate(calendar.month_name))[1:], format_func=lambda x: x[1])[0]
+
+    cortes = obtener_cortes_por_mes(anio, mes)
+    ventas = obtener_ventas()
+    gastos = obtener_gastos_por_mes(anio, mes)
+    resumen = obtener_resumen_mensual(anio, mes)
+
+    st.markdown("### ✂️ Cortes realizados")
+    if cortes:
+        for c in cortes:
+            st.write(f"📌 {c[0]} — Cortes: {c[1]} — Ganancia: ₡{c[2]:,.2f}")
+    else:
+        st.info("No hay cortes registrados para este mes.")
+
+    st.markdown("### 🧴 Ventas registradas")
+    if ventas:
+        for v in ventas:
+            if v[0][:7] == f"{anio}-{mes:02d}":
+                st.write(f"🗓️ {v[0]} — Producto: {v[1]} — Cantidad: {v[2]} — Total: ₡{v[3]:,.2f}")
+    else:
+        st.info("No hay ventas registradas.")
+
+    st.markdown("### 💸 Gastos del mes")
+    if gastos:
+        for g in gastos:
+            st.write(f"🗓️ {g[0]} — {g[1]} — ₡{g[2]:,.2f}")
+    else:
+        st.info("No hay gastos registrados.")
+
+    st.markdown("### 📊 Resumen del mes")
+    st.success(f"✂️ Cortes: {resumen['cortes_realizados']} — 💰 Ganancia cortes: ₡{resumen['ganancia_cortes']:,.2f}")
+    st.success(f"🧴 Productos vendidos: {resumen['productos_vendidos']} — Ganancia ventas: ₡{resumen['ganancia_ventas']:,.2f}")
+    st.warning(f"💸 Gastos totales: ₡{resumen['total_gastos']:,.2f}")
+
+    st.markdown("## ➕ Registrar nueva venta")
+    with st.form("form_venta"):
+        fecha_venta = st.date_input("Fecha", value=date.today())
+        producto = st.text_input("Producto")
+        cantidad = st.number_input("Cantidad", min_value=1, step=1)
+        total = st.number_input("Total ₡", min_value=0.0, step=100.0, format="%.2f")
+        registrar = st.form_submit_button("Guardar venta")
+        if registrar:
+            registrar_venta(fecha_venta.strftime("%Y-%m-%d"), producto, cantidad, total)
+            st.success("✅ Venta registrada")
+            st.experimental_rerun()
+
+    st.markdown("## ➕ Registrar nuevo gasto")
+    with st.form("form_gasto"):
+        fecha_gasto = st.date_input("Fecha gasto", value=date.today())
+        descripcion = st.text_input("Descripción")
+        monto = st.number_input("Monto ₡", min_value=0.0, step=100.0, format="%.2f")
+        guardar_gasto = st.form_submit_button("Guardar gasto")
+        if guardar_gasto:
+            registrar_gasto(fecha_gasto.strftime("%Y-%m-%d"), descripcion, monto)
+            st.success("✅ Gasto registrado")
+            st.experimental_rerun()
+elif opcion == "Inventario":
+    st.subheader("📦 Control de inventario de productos")
+
+    st.markdown("### ➕ Agregar nuevo producto")
+    with st.form("form_producto"):
+        nombre = st.text_input("Nombre del producto")
+        cantidad = st.number_input("Cantidad en stock", min_value=0, step=1)
+        costo = st.number_input("Costo por unidad (₡)", min_value=0.0, step=100.0, format="%.2f")
+        registrar_producto_btn = st.form_submit_button("Guardar producto")
+        if registrar_producto_btn:
+            registrar_producto(nombre, cantidad, costo)
+            st.success("✅ Producto registrado")
+            st.experimental_rerun()
+
+    st.markdown("### 📋 Lista de productos")
+    productos = obtener_productos()
+    if productos:
+        for i, producto in enumerate(productos):
+            nombre, cantidad, costo = producto
+            col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+            alerta = " 🔴" if cantidad < 3 else ""
+            col1.markdown(f"🧴 **{nombre}** — Cantidad: {cantidad}{alerta}")
+            col2.markdown(f"₡{costo:,.2f} por unidad")
+
+            with col3:
+                if st.button("✏️", key=f"edit_prod_{i}"):
+                    with st.form(f"form_edit_producto_{i}"):
+                        nueva_cantidad = st.number_input("Nueva cantidad", min_value=0, value=cantidad, key=f"cant_prod_{i}")
+                        nuevo_costo = st.number_input("Nuevo costo", min_value=0.0, value=costo, format="%.2f", key=f"costo_prod_{i}")
+                        actualizar = st.form_submit_button("Actualizar producto")
+                        if actualizar:
+                            actualizar_producto(nombre, nueva_cantidad, nuevo_costo)
+                            st.success("✅ Producto actualizado")
+                            st.experimental_rerun()
+
+            with col4:
+                if st.button("🗑️", key=f"del_prod_{i}"):
+                    eliminar_producto(nombre)
+                    st.success("✅ Producto eliminado")
+                    st.experimental_rerun()
+    else:
+        st.info("No hay productos registrados.")
+
