@@ -1,179 +1,190 @@
 import streamlit as st
-from database import (
-    init_db,
-    registrar_cortes,
-    obtener_registros,
-    obtener_resumen,
-    obtener_cortes_por_mes,
-    eliminar_corte,
-    actualizar_corte,
-    registrar_venta,
-    obtener_ventas,
-    obtener_resumen_mensual,
-    registrar_producto,
-    obtener_productos,
-    eliminar_producto,
-    actualizar_producto,
-    registrar_gasto,
-    obtener_gastos_por_mes
-)
 from datetime import date
 import calendar
+from database import (
+    init_db, registrar_cortes, obtener_registros, actualizar_corte, eliminar_corte,
+    obtener_resumen, obtener_cortes_por_mes, registrar_venta, obtener_ventas,
+    registrar_gasto, obtener_gastos_por_mes, obtener_resumen_mensual,
+    registrar_producto, obtener_productos, actualizar_producto, eliminar_producto
+)
 
-# Inicializar base de datos
+# Inicializa la base de datos
 init_db()
 
-# Estilo visual
+# Configuración de página
+st.set_page_config(page_title="Barbería App", layout="wide")
+
+# Estilos personalizados
 st.markdown("""
     <style>
+    /* Menú lateral */
     section[data-testid="stSidebar"] {
-        background-color: #002244 !important;
+        background-color: #003366;
     }
-    section[data-testid="stSidebar"] * {
-        color: white !important;
-    }
-    .stButton > button {
-        background-color: #8B0000;
+    section[data-testid="stSidebar"] .st-bk {
         color: white;
-        font-weight: bold;
-        border-radius: 8px;
-        padding: 0.5em 1em;
+    }
+    /* Botones tipo 3D */
+    div.stButton > button {
+        background-color: #800000;
+        color: white;
         border: none;
+        padding: 10px 16px;
+        border-radius: 10px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        font-weight: bold;
     }
-    .stButton > button:hover {
-        background-color: #B22222;
+    div.stButton > button:hover {
+        background-color: #990000;
+        transform: scale(1.03);
     }
-    html, body, .stApp {
-        background-color: white;
-        color: black;
+    /* Cajas de info */
+    .info-card {
+        background-color: #f7f7f7;
+        padding: 15px;
+        border-left: 5px solid #003366;
+        margin-bottom: 10px;
+        border-radius: 5px;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # Menú lateral
-st.sidebar.title("📋 Menú")
-opcion = st.sidebar.radio("Ir a:", ["Registro de cortes", "Gestión mensual y ventas", "Inventario"])
+opcion = st.sidebar.radio("Menú Principal", ["Registro de cortes", "Gestión mensual y ventas", "Inventario"])
 
-# Título principal
-st.markdown("## 💈 Sistema de Gestión para Barbería")
+# Encabezado general
+st.title("💈 Sistema de Gestión - Barbería Moderna")
 if opcion == "Registro de cortes":
-    st.subheader("✂️ Registro de cortes del día")
+    st.subheader("✂️ Registro de Cortes Diarios")
 
-    with st.form(key="registro_cortes_form"):
+    with st.form("form_cortes"):
         fecha = st.date_input("Fecha", value=date.today())
         cantidad = st.number_input("Cantidad de cortes", min_value=0, step=1)
-        ganancia = st.number_input("Ganancia total (₡)", min_value=0.0, step=1000.0, format="%.2f")
-        guardar = st.form_submit_button("Guardar")
-
-    if guardar:
-        fecha_str = fecha.strftime("%Y-%m-%d")
-        if registrar_cortes(fecha_str, cantidad, ganancia):
-            st.success("✅ Registro guardado correctamente.")
-        else:
-            st.warning("⚠️ Ya existe un registro para esta fecha.")
-
+        ganancia = st.number_input("Ganancia total (₡)", min_value=0.0, step=100.0, format="%.2f")
+        submitted = st.form_submit_button("Guardar")
+        if submitted:
+            exito = registrar_cortes(str(fecha), cantidad, ganancia)
+            if exito:
+                st.success("✅ Cortes registrados correctamente.")
+            else:
+                st.warning("⚠️ Ya existen cortes para esa fecha. Si desea cambiar los datos, edite el registro.")
+    
     st.markdown("---")
-    st.subheader("📆 Historial de cortes")
+    st.subheader("📅 Historial de cortes")
 
     registros = obtener_registros()
-    for r in registros:
-        with st.expander(f"{r[0]} — {r[1]} cortes — ₡{r[2]:,.2f}"):
-            nueva_cantidad = st.number_input(f"✏️ Cantidad ({r[0]})", value=r[1], key=f"cantidad_{r[0]}")
-            nueva_ganancia = st.number_input(f"💰 Ganancia ({r[0]})", value=r[2], step=1000.0, format="%.2f", key=f"ganancia_{r[0]}")
-            if st.button("Actualizar", key=f"act_{r[0]}"):
-                actualizar_corte(r[0], nueva_cantidad, nueva_ganancia)
-                st.success("✅ Registro actualizado.")
-                st.experimental_rerun()
-            if st.button("Eliminar", key=f"elim_{r[0]}"):
-                eliminar_corte(r[0])
-                st.warning("🗑️ Registro eliminado.")
-                st.experimental_rerun()
+    for reg in registros:
+        fecha, cantidad, ganancia = reg
+        with st.expander(f"{fecha} — {cantidad} cortes — ₡{ganancia:,.2f}"):
+            nueva_cantidad = st.number_input(f"Cantidad ({fecha})", value=cantidad, key=f"cantidad_{fecha}", step=1)
+            nueva_ganancia = st.number_input(f"Ganancia ({fecha})", value=ganancia, key=f"ganancia_{fecha}", step=100.0, format="%.2f")
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                if st.button("Actualizar", key=f"act_{fecha}"):
+                    actualizar_corte(fecha, nueva_cantidad, nueva_ganancia)
+                    st.success("✅ Registro actualizado.")
+                    st.experimental_rerun()
+            with col2:
+                if st.button("Eliminar", key=f"elim_{fecha}"):
+                    eliminar_corte(fecha)
+                    st.warning("🗑️ Registro eliminado.")
+                    st.experimental_rerun()
 
     st.markdown("---")
     st.subheader("📊 Resumen general")
-
     total_cortes, total_ganancias = obtener_resumen()
-    st.markdown(f"**Total de cortes registrados:** {total_cortes}")
-    st.markdown(f"**Ganancias acumuladas:** ₡{total_ganancias:,.2f}")
+    st.markdown(f'<div class="info-card">✂️ Total de cortes: <strong>{total_cortes}</strong></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card">💰 Ganancias acumuladas: <strong>₡{total_ganancias:,.2f}</strong></div>', unsafe_allow_html=True)
 elif opcion == "Gestión mensual y ventas":
-    st.subheader("📅 Gestión mensual y control de ventas")
+    st.subheader("📆 Parte Media del Proyecto: Gestión mensual, ventas y control de gastos")
+    st.markdown("Esta sección incluye todas las funciones básicas, más el control mensual y registro de ventas/gastos.")
 
-    anio = st.number_input("Seleccione el año", value=date.today().year, step=1)
+    meses_es = {
+        "Enero": 1, "Febrero": 2, "Marzo": 3, "Abril": 4, "Mayo": 5, "Junio": 6,
+        "Julio": 7, "Agosto": 8, "Septiembre": 9, "Octubre": 10, "Noviembre": 11, "Diciembre": 12
+    }
 
-    meses_es = [
-        (1, "Enero"), (2, "Febrero"), (3, "Marzo"), (4, "Abril"),
-        (5, "Mayo"), (6, "Junio"), (7, "Julio"), (8, "Agosto"),
-        (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre")
-    ]
-    mes = st.selectbox("Seleccione el mes", options=meses_es, format_func=lambda x: x[1])[0]
+    mes_nombre = st.selectbox("Seleccione el mes", list(meses_es.keys()))
+    anio = st.number_input("Año", min_value=2020, max_value=2100, value=date.today().year)
+    mes = meses_es[mes_nombre]
 
+    st.markdown("### 📌 Cortes del mes seleccionado")
+    cortes_mes = obtener_cortes_por_mes(anio, mes)
+    for f, c, g in cortes_mes:
+        st.markdown(f"- {f}: {c} cortes — ₡{g:,.2f}")
+
+    st.markdown("---")
+    st.markdown("### 🧴 Registro de venta de productos")
+    with st.form("form_ventas"):
+        fecha_venta = st.date_input("Fecha de venta", value=date.today(), key="fecha_venta")
+        producto = st.text_input("Producto vendido", key="producto")
+        cantidad = st.number_input("Cantidad", min_value=1, step=1, key="cantidad")
+        total = st.number_input("Total ₡", min_value=0.0, step=100.0, format="%.2f", key="total")
+        venta_guardada = st.form_submit_button("Registrar venta")
+        if venta_guardada:
+            registrar_venta(str(fecha_venta), producto, cantidad, total)
+            st.success("✅ Venta registrada.")
+
+    st.markdown("### 📌 Registro de gastos")
+    with st.form("form_gastos"):
+        fecha_gasto = st.date_input("Fecha del gasto", value=date.today(), key="fecha_gasto")
+        descripcion = st.text_input("Descripción del gasto", key="desc_gasto")
+        monto = st.number_input("Monto ₡", min_value=0.0, step=100.0, format="%.2f", key="monto_gasto")
+        gasto_guardado = st.form_submit_button("Registrar gasto")
+        if gasto_guardado:
+            registrar_gasto(str(fecha_gasto), descripcion, monto)
+            st.success("✅ Gasto registrado.")
+
+    st.markdown("---")
+    st.markdown("### 📈 Resumen del mes")
     resumen = obtener_resumen_mensual(anio, mes)
-
-    st.markdown("---")
-    st.markdown("### ✂️ Resumen de cortes")
-    st.markdown(f"- Total de cortes: **{resumen['cortes_realizados']}**")
-    st.markdown(f"- Ganancia por cortes: **₡{resumen['ganancia_cortes']:,.2f}**")
-
-    st.markdown("### 🧴 Resumen de ventas de productos")
-    st.markdown(f"- Productos vendidos: **{resumen['productos_vendidos']}**")
-    st.markdown(f"- Ganancia por ventas: **₡{resumen['ganancia_ventas']:,.2f}**")
-
-    st.markdown("### 💸 Resumen de gastos")
-    st.markdown(f"- Total de gastos: **₡{resumen['total_gastos']:,.2f}**")
-
-    st.markdown("---")
-    st.subheader("🛒 Registro de venta de productos")
-
-    with st.form("form_venta"):
-        fecha_venta = st.date_input("Fecha de venta", value=date.today())
-        producto = st.text_input("Producto vendido")
-        cantidad = st.number_input("Cantidad", min_value=1, step=1)
-        total = st.number_input("Total ₡", min_value=0.0, step=1000.0, format="%.2f")
-        if st.form_submit_button("Registrar venta"):
-            registrar_venta(fecha_venta.strftime("%Y-%m-%d"), producto, cantidad, total)
-            st.success("✅ Venta registrada correctamente.")
-            st.experimental_rerun()
-
-    st.subheader("💼 Registro de gastos")
-
-    with st.form("form_gasto"):
-        fecha_gasto = st.date_input("Fecha del gasto", value=date.today())
-        descripcion = st.text_input("Descripción del gasto")
-        monto = st.number_input("Monto ₡", min_value=0.0, step=1000.0, format="%.2f")
-        if st.form_submit_button("Registrar gasto"):
-            registrar_gasto(fecha_gasto.strftime("%Y-%m-%d"), descripcion, monto)
-            st.success("✅ Gasto registrado correctamente.")
-            st.experimental_rerun()
+    st.markdown(f'<div class="info-card">✂️ Cortes realizados: <strong>{resumen["cortes_realizados"]}</strong></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card">💰 Ganancia por cortes: <strong>₡{resumen["ganancia_cortes"]:,.2f}</strong></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card">🧴 Productos vendidos: <strong>{resumen["productos_vendidos"]}</strong></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card">💸 Ganancia por ventas: <strong>₡{resumen["ganancia_ventas"]:,.2f}</strong></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card">📉 Total de gastos: <strong>₡{resumen["total_gastos"]:,.2f}</strong></div>', unsafe_allow_html=True)
 elif opcion == "Inventario":
     st.subheader("📦 Gestión de Inventario")
 
+    st.markdown("### ➕ Agregar producto al inventario")
     with st.form("form_inventario"):
-        nombre = st.text_input("Nombre del producto")
-        cantidad = st.number_input("Cantidad en stock", min_value=0, step=1)
-        costo = st.number_input("Costo unitario (₡)", min_value=0.0, step=100.0, format="%.2f")
-        if st.form_submit_button("Registrar producto"):
+        nombre = st.text_input("Nombre del producto", key="nombre_inv")
+        cantidad = st.number_input("Cantidad", min_value=0, step=1, key="cantidad_inv")
+        costo = st.number_input("Costo ₡", min_value=0.0, step=100.0, format="%.2f", key="costo_inv")
+        agregar = st.form_submit_button("Guardar producto")
+        if agregar and nombre:
             registrar_producto(nombre, cantidad, costo)
-            st.success("✅ Producto registrado correctamente.")
-            st.experimental_rerun()
+            st.success(f"✅ Producto '{nombre}' agregado.")
 
-    st.markdown("---")
-    st.subheader("📋 Productos registrados")
-
+    st.markdown("### 📋 Productos registrados")
     productos = obtener_productos()
+
     for p in productos:
         nombre, cantidad, costo = p
-        alerta = " 🔴 Bajo stock" if cantidad < 3 else ""
-        with st.expander(f"{nombre} — {cantidad} unidades — ₡{costo:,.2f}{alerta}"):
-            nueva_cantidad = st.number_input(f"Cantidad ({nombre})", value=cantidad, step=1, key=f"cant_{nombre}")
-            nuevo_costo = st.number_input(f"Costo ({nombre})", value=costo, step=100.0, format="%.2f", key=f"cost_{nombre}")
-            if st.button("Actualizar", key=f"act_{nombre}"):
-                actualizar_producto(nombre, nueva_cantidad, nuevo_costo)
-                st.success("✅ Producto actualizado.")
-                st.experimental_rerun()
-            if st.button("Eliminar", key=f"elim_{nombre}"):
-                eliminar_producto(nombre)
-                st.warning("🗑️ Producto eliminado.")
-                st.experimental_rerun()
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            st.markdown(f"- **{nombre}** — Cantidad: {cantidad}, Costo: ₡{costo:,.2f}")
+            if cantidad < 3:
+                st.warning("⚠️ Bajo stock")
+
+        with col2:
+            editar = st.button(f"✏️", key=f"edit_{nombre}")
+            eliminar = st.button(f"🗑️", key=f"del_{nombre}")
+
+        if editar:
+            with st.form(f"edit_form_{nombre}"):
+                nueva_cantidad = st.number_input("Nueva cantidad", value=cantidad, min_value=0, step=1, key=f"new_qty_{nombre}")
+                nuevo_costo = st.number_input("Nuevo costo ₡", value=costo, min_value=0.0, step=100.0, format="%.2f", key=f"new_cost_{nombre}")
+                confirmar = st.form_submit_button("Actualizar")
+                if confirmar:
+                    actualizar_producto(nombre, nueva_cantidad, nuevo_costo)
+                    st.success("✅ Producto actualizado.")
+                    st.experimental_rerun()
+
+        if eliminar:
+            eliminar_producto(nombre)
+            st.warning(f"🗑️ Producto '{nombre}' eliminado.")
+            st.experimental_rerun()
 
 
 
