@@ -210,3 +210,4 @@ elif opcion == "Inventario":
     else:
         st.info("No hay productos registrados.")
 
+
