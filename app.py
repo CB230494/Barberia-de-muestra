@@ -75,10 +75,13 @@ if opcion == "Registro de cortes":
             else:
                 st.error("⚠️ Ya existe un registro para esta fecha.")
 
-    st.subheader("📅 Historial de cortes registrados")
+        st.subheader("📅 Historial de cortes registrados")
     registros = obtener_registros()
     if registros:
-        for i, (fecha, cantidad, ganancia) in enumerate(registros):
+        for i, registro in enumerate(registros):
+            if len(registro) != 3:
+                continue
+            fecha, cantidad, ganancia = registro
             col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
             col1.markdown(f"📌 **{fecha}** — Cortes: {cantidad}, Ganancia: ₡{ganancia:,.2f}")
             with col3:
@@ -98,6 +101,7 @@ if opcion == "Registro de cortes":
                     st.experimental_rerun()
     else:
         st.info("No hay cortes registrados todavía.")
+
 
     st.subheader("📊 Resumen general")
     resumen = obtener_resumen()
