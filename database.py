@@ -123,4 +123,53 @@ def obtener_resumen_mensual(anio, mes):
         "productos_vendidos": total_productos or 0,
         "ganancia_ventas": total_ganancias_ventas or 0
     }
+def registrar_producto(nombre, tipo, cantidad, precio_unitario):
+    conn = sqlite3.connect("barberia.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO inventario (nombre, tipo, cantidad, precio_unitario)
+        VALUES (?, ?, ?, ?)
+    """, (nombre, tipo, cantidad, precio_unitario))
+    conn.commit()
+    conn.close()
+
+def obtener_productos():
+    conn = sqlite3.connect("barberia.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT nombre, tipo, cantidad, precio_unitario FROM inventario")
+    productos = cursor.fetchall()
+    conn.close()
+    return productos
+
+def eliminar_producto(nombre, tipo):
+    conn = sqlite3.connect("barberia.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM inventario WHERE nombre = ? AND tipo = ?", (nombre, tipo))
+    conn.commit()
+    conn.close()
+
+def actualizar_producto(nombre_ant, tipo_ant, nombre, tipo, cantidad, precio_unitario):
+    conn = sqlite3.connect("barberia.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE inventario
+        SET nombre = ?, tipo = ?, cantidad = ?, precio_unitario = ?
+        WHERE nombre = ? AND tipo = ?
+    """, (nombre, tipo, cantidad, precio_unitario, nombre_ant, tipo_ant))
+    conn.commit()
+    conn.close()
+
+def crear_tabla_inventario():
+    conn = sqlite3.connect("barberia.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS inventario (
+            nombre TEXT,
+            tipo TEXT,
+            cantidad INTEGER,
+            precio_unitario REAL
+        )
+    """)
+    conn.commit()
+    conn.close()
 
