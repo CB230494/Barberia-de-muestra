@@ -18,8 +18,8 @@ from database import (
     obtener_gastos_por_mes
 )
 from datetime import date
-import sqlite3
 import calendar
+import sqlite3
 
 # Inicializar base de datos
 init_db()
@@ -75,7 +75,7 @@ if opcion == "Registro de cortes":
             else:
                 st.error("⚠️ Ya existe un registro para esta fecha.")
 
-        st.subheader("📅 Historial de cortes registrados")
+    st.subheader("📅 Historial de cortes registrados")
     registros = obtener_registros()
     if registros:
         for i, registro in enumerate(registros):
@@ -101,7 +101,6 @@ if opcion == "Registro de cortes":
                     st.experimental_rerun()
     else:
         st.info("No hay cortes registrados todavía.")
-
 
     st.subheader("📊 Resumen general")
     resumen = obtener_resumen()
@@ -130,10 +129,10 @@ elif opcion == "Gestión mensual y ventas":
         st.info("No hay cortes registrados para este mes.")
 
     st.markdown("### 🧴 Ventas registradas")
-    if ventas:
-        for v in ventas:
-            if v[0][:7] == f"{anio}-{mes:02d}":
-                st.write(f"🗓️ {v[0]} — Producto: {v[1]} — Cantidad: {v[2]} — Total: ₡{v[3]:,.2f}")
+    ventas_mes = [v for v in ventas if v[0][:7] == f"{anio}-{mes:02d}"]
+    if ventas_mes:
+        for v in ventas_mes:
+            st.write(f"🗓️ {v[0]} — Producto: {v[1]} — Cantidad: {v[2]} — Total: ₡{v[3]:,.2f}")
     else:
         st.info("No hay ventas registradas.")
 
@@ -172,46 +171,42 @@ elif opcion == "Gestión mensual y ventas":
             st.success("✅ Gasto registrado")
             st.experimental_rerun()
 elif opcion == "Inventario":
-    st.subheader("📦 Control de inventario de productos")
+    st.subheader("📦 Inventario de productos")
 
-    st.markdown("### ➕ Agregar nuevo producto")
-    with st.form("form_producto"):
+    st.markdown("### ➕ Registrar nuevo producto")
+    with st.form("form_nuevo_producto"):
         nombre = st.text_input("Nombre del producto")
-        cantidad = st.number_input("Cantidad en stock", min_value=0, step=1)
-        costo = st.number_input("Costo por unidad (₡)", min_value=0.0, step=100.0, format="%.2f")
-        registrar_producto_btn = st.form_submit_button("Guardar producto")
-        if registrar_producto_btn:
-            registrar_producto(nombre, cantidad, costo)
+        cantidad = st.number_input("Cantidad disponible", min_value=0, step=1)
+        registrar = st.form_submit_button("Guardar producto")
+        if registrar:
+            registrar_producto(nombre, cantidad)
             st.success("✅ Producto registrado")
             st.experimental_rerun()
 
     st.markdown("### 📋 Lista de productos")
     productos = obtener_productos()
     if productos:
-        for i, producto in enumerate(productos):
-            nombre, cantidad, costo = producto
-            col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
-            alerta = " 🔴" if cantidad < 3 else ""
-            col1.markdown(f"🧴 **{nombre}** — Cantidad: {cantidad}{alerta}")
-            col2.markdown(f"₡{costo:,.2f} por unidad")
-
+        for i, (id_prod, nombre, cantidad) in enumerate(productos):
+            col1, col2, col3, col4 = st.columns([4, 2, 1, 1])
+            alerta = "⚠️" if cantidad < 3 else ""
+            col1.write(f"{alerta} {nombre}")
+            col2.write(f"Stock: {cantidad}")
             with col3:
                 if st.button("✏️", key=f"edit_prod_{i}"):
-                    with st.form(f"form_edit_producto_{i}"):
-                        nueva_cantidad = st.number_input("Nueva cantidad", min_value=0, value=cantidad, key=f"cant_prod_{i}")
-                        nuevo_costo = st.number_input("Nuevo costo", min_value=0.0, value=costo, format="%.2f", key=f"costo_prod_{i}")
-                        actualizar = st.form_submit_button("Actualizar producto")
+                    with st.form(f"form_edit_prod_{i}"):
+                        nuevo_nombre = st.text_input("Nombre", value=nombre, key=f"nom_{i}")
+                        nueva_cantidad = st.number_input("Cantidad", value=cantidad, min_value=0, step=1, key=f"cant_{i}")
+                        actualizar = st.form_submit_button("Actualizar")
                         if actualizar:
-                            actualizar_producto(nombre, nueva_cantidad, nuevo_costo)
+                            actualizar_producto(id_prod, nuevo_nombre, nueva_cantidad)
                             st.success("✅ Producto actualizado")
                             st.experimental_rerun()
-
             with col4:
                 if st.button("🗑️", key=f"del_prod_{i}"):
-                    eliminar_producto(nombre)
+                    eliminar_producto(id_prod)
                     st.success("✅ Producto eliminado")
                     st.experimental_rerun()
     else:
-        st.info("No hay productos registrados.")
+        st.info("No hay productos en el inventario.")
 
 
