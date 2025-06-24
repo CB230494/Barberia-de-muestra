@@ -22,7 +22,12 @@ fecha = st.date_input("📅 Fecha", min_value=date.today())
 def generar_horarios_del_dia(fecha):
     citas = obtener_citas()
     df = pd.DataFrame(citas)
-    df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+
+    # Verificar que las columnas necesarias existan
+    if "fecha" not in df.columns or "hora" not in df.columns or "estado" not in df.columns:
+        df = pd.DataFrame(columns=["fecha", "hora", "estado"])
+
+    df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce").dt.date
 
     horarios_dia = []
     actual = datetime.combine(fecha, datetime.min.time()).replace(hour=HORARIO_INICIO)
@@ -77,4 +82,5 @@ if horas_disponibles:
             st.experimental_rerun()
 else:
     st.warning("⛔ No hay horarios disponibles para esta fecha.")
+
 
