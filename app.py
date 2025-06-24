@@ -143,12 +143,12 @@ if menu == "✂️ Registro de Cortes":
 # 📦 PESTAÑA 2: Inventario
 # ---------------------------------------------
 elif menu == "📦 Inventario":
-    from database import insertar_producto, obtener_productos  # puedes agregar otras funciones luego
+    from database import insertar_producto, obtener_productos  # puedes añadir editar/eliminar más adelante
 
-    st.title("📦 Control de Inventario")
-    st.markdown("Administra los productos disponibles y su stock en tiempo real.")
+    st.title("📦 Inventario de Productos")
+    st.markdown("Registra productos para su venta en la barbería y controla su stock.")
 
-    # ---------- FORMULARIO NUEVO PRODUCTO ----------
+    # ---------- FORMULARIO: AGREGAR PRODUCTO ----------
     st.subheader("➕ Agregar nuevo producto")
 
     with st.form("form_nuevo_producto"):
@@ -165,7 +165,7 @@ elif menu == "📦 Inventario":
             elif stock < 0:
                 st.warning("⚠️ El stock no puede ser negativo.")
             else:
-                insertar_producto(nombre.strip(), descripcion, stock, precio_unitario)
+                insertar_producto(nombre.strip(), descripcion.strip(), stock, precio_unitario)
                 st.success("✅ Producto registrado correctamente")
                 st.rerun()
 
@@ -179,7 +179,7 @@ elif menu == "📦 Inventario":
         df_prod = pd.DataFrame(productos)
         df_prod["precio_unitario"] = df_prod["precio_unitario"].map(lambda x: round(x, 2))
 
-        # Excel export
+        # Botón de descarga Excel
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df_prod.to_excel(writer, index=False, sheet_name="Productos")
@@ -192,8 +192,7 @@ elif menu == "📦 Inventario":
 
         st.dataframe(df_prod, use_container_width=True)
     else:
-        st.info("No hay productos registrados.")
-
+        st.info("No hay productos registrados todavía.")
 
 
 
