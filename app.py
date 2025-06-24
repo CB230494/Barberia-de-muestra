@@ -488,6 +488,95 @@ elif menu == "💵 Finanzas":
                         st.rerun()
         else:
             st.info("No hay gastos registrados.")
+# ---------------------------------------------
+# 📊 PESTAÑA 5: Reporte General
+# ---------------------------------------------
+elif menu == "📊 Reporte General":
+    from database import obtener_cortes, obtener_ingresos, obtener_gastos
+    import matplotlib.pyplot as plt
+
+    st.title("📊 Reporte General")
+    st.markdown("Resumen de actividad y finanzas por período de tiempo.")
+
+    # --------- Filtro de fechas ---------
+    col1, col2 = st.columns(2)
+    fecha_inicio = col1.date_input("📅 Desde", value=date(2025, 1, 1))
+    fecha_fin = col2.date_input("📅 Hasta", value=date.today())
+
+    cortes = obtener_cortes()
+    ingresos = obtener_ingresos()
+    gastos = obtener_gastos()
+
+    df_cortes = pd.DataFrame(cortes)
+    df_ingresos = pd.DataFrame(ingresos)
+    df_gastos = pd.DataFrame(gastos)
+
+    # --------- Filtros por fecha ---------
+    def filtrar_por_fecha(df, columna="fecha"):
+        if df.empty:
+            return df
+        df[columna] = pd.to_datetime(df[columna]).dt.date
+        return df[(df[columna] >= fecha_inicio) & (df[columna] <= fecha_fin)]
+
+    df_cortes = filtrar_por_fecha(df_cortes)
+    df_ingresos = filtrar_por_fecha(df_ingresos)
+    df_gastos = filtrar_por_fecha(df_gastos)
+
+    # --------- Cortes realizados ---------
+    st.subheader("💈 Cortes realizados")
+    if not df_cortes.empty:
+        total_cortes = len(df_cortes)
+        total_por_barbero = df_cortes["barbero"].value_counts()
+        st.markdown(f"**Total de cortes:** {total_cortes}")
+        st.bar_chart(total_por_barbero)
+    else:
+        st.info("No hay cortes registrados en el rango seleccionado.")
+
+    # --------- Ingresos ---------
+    st.subheader("💰 Ingresos")
+    if not df_ingresos.empty:
+        total_ingresos = df_ingresos["monto"].sum()
+        st.markdown(f"**Total de ingresos:** ₡{total_ingresos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.dataframe(df_ingresos[["fecha", "concepto", "monto", "observacion"]], use_container_width=True)
+    else:
+        st.info("No hay ingresos registrados en el rango seleccionado.")
+
+    # --------- Gastos ---------
+    st.subheader("💸 Gastos")
+    if not df_gastos.empty:
+        total_gastos = df_gastos["monto"].sum()
+        st.markdown(f"**Total de gastos:** ₡{total_gastos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.dataframe(df_gastos[["fecha", "concepto", "monto", "observacion"]], use_container_width=True)
+    else:
+        st.info("No hay gastos registrados en el rango seleccionado.")
+
+    # --------- Balance final ---------
+    st.divider()
+    st.subheader("📉 Balance del período")
+
+    balance = total_ingresos - total_gastos
+    color = "green" if balance >= 0 else "red"
+    st.markdown(
+        f"<strong>Balance final:</strong> <span style='color:{color}; font-weight:bold;'>₡{balance:,.2f}</span>"
+        .replace(",", "X").replace(".", ",").replace("X", "."),
+        unsafe_allow_html=True
+    )
+
+    # --------- Descargar resumen Excel ---------
+    st.divider()
+    st.subheader("⬇️ Descargar respaldo")
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df_cortes.to_excel(writer, index=False, sheet_name="Cortes")
+        df_ingresos.to_excel(writer, index=False, sheet_name="Ingresos")
+        df_gastos.to_excel(writer, index=False, sheet_name="Gastos")
+
+    st.download_button(
+        label="📁 Descargar respaldo en Excel",
+        data=output.getvalue(),
+        file_name="resumen_general.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 
 
