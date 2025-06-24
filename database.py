@@ -6,7 +6,7 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ----------------- CORTES -----------------
+# ----------------- ✂️ CORTES -----------------
 def insertar_corte(fecha, barbero, cliente, tipo_corte, precio, observacion=""):
     data = {
         "fecha": fecha,
@@ -27,7 +27,7 @@ def eliminar_corte(corte_id):
 def actualizar_corte(corte_id, data_actualizada):
     return supabase.table("cortes").update(data_actualizada).eq("id", corte_id).execute()
 
-# ----------------- PRODUCTOS -----------------
+# ----------------- 📦 PRODUCTOS -----------------
 def insertar_producto(nombre, descripcion, stock, precio_unitario):
     data = {
         "nombre": nombre,
@@ -38,27 +38,27 @@ def insertar_producto(nombre, descripcion, stock, precio_unitario):
     return supabase.table("productos").insert(data).execute()
 
 def obtener_productos():
-    return supabase.table("productos").select("*").order("id", "asc").execute().data
+    return supabase.table("productos").select("*").order("id", desc=False).execute().data
 
-# ----------------- CITAS -----------------
+# ----------------- 📅 CITAS -----------------
 def insertar_cita(fecha, hora, cliente_nombre, barbero, servicio):
     data = {
         "fecha": fecha,
         "hora": hora,
         "cliente_nombre": cliente_nombre,
         "barbero": barbero,
-        "servicio": servicio,
+        "service": servicio,
         "estado": "pendiente"
     }
     return supabase.table("citas").insert(data).execute()
 
 def obtener_citas():
-    return supabase.table("citas").select("*").order("fecha", asc=True).execute().data
+    return supabase.table("citas").select("*").order("fecha", desc=False).execute().data
 
 def actualizar_estado_cita(cita_id, nuevo_estado):
     return supabase.table("citas").update({"estado": nuevo_estado}).eq("id", cita_id).execute()
 
-# ----------------- INGRESOS -----------------
+# ----------------- 💵 INGRESOS -----------------
 def insertar_ingreso(fecha, concepto, monto, observacion=""):
     data = {
         "fecha": fecha,
@@ -71,7 +71,7 @@ def insertar_ingreso(fecha, concepto, monto, observacion=""):
 def obtener_ingresos():
     return supabase.table("ingresos").select("*").order("fecha", desc=True).execute().data
 
-# ----------------- GASTOS -----------------
+# ----------------- 💸 GASTOS -----------------
 def insertar_gasto(fecha, concepto, monto, observacion=""):
     data = {
         "fecha": fecha,
@@ -83,4 +83,5 @@ def insertar_gasto(fecha, concepto, monto, observacion=""):
 
 def obtener_gastos():
     return supabase.table("gastos").select("*").order("fecha", desc=True).execute().data
+
 
