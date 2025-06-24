@@ -336,6 +336,158 @@ elif menu == "📅 Citas":
                     st.rerun()
     else:
         st.info("No hay citas registradas.")
+# ---------------------------------------------
+# 💵 PESTAÑA 4: Finanzas
+# ---------------------------------------------
+elif menu == "💵 Finanzas":
+    from database import (
+        insertar_ingreso,
+        obtener_ingresos,
+        actualizar_ingreso,
+        eliminar_ingreso,
+        insertar_gasto,
+        obtener_gastos,
+        actualizar_gasto,
+        eliminar_gasto
+    )
+
+    st.title("💵 Control de Finanzas")
+    st.markdown("Registra ingresos y gastos de la barbería, y consulta el balance general.")
+
+    # ----------- FORMULARIO INGRESO -----------
+    st.subheader("➕ Agregar Ingreso")
+    with st.form("form_ingreso"):
+        col1, col2 = st.columns(2)
+        fecha_i = col1.date_input("Fecha del ingreso", value=date.today())
+        concepto_i = col2.text_input("Concepto del ingreso")
+        monto_i = st.number_input("Monto (₡)", min_value=0.0, step=500.0, format="%.2f", key="monto_ingreso")
+        observacion_i = st.text_area("Observación (opcional)")
+        enviar_i = st.form_submit_button("💾 Guardar ingreso")
+        if enviar_i:
+            if not concepto_i.strip():
+                st.warning("⚠️ El concepto es obligatorio.")
+            else:
+                insertar_ingreso(str(fecha_i), concepto_i.strip(), monto_i, observacion_i.strip())
+                st.success("✅ Ingreso registrado")
+                st.rerun()
+
+    # ----------- FORMULARIO GASTO -----------
+    st.subheader("➖ Agregar Gasto")
+    with st.form("form_gasto"):
+        col1, col2 = st.columns(2)
+        fecha_g = col1.date_input("Fecha del gasto", value=date.today())
+        concepto_g = col2.text_input("Concepto del gasto")
+        monto_g = st.number_input("Monto (₡)", min_value=0.0, step=500.0, format="%.2f", key="monto_gasto")
+        observacion_g = st.text_area("Observación (opcional)", key="obs_gasto")
+        enviar_g = st.form_submit_button("💾 Guardar gasto")
+        if enviar_g:
+            if not concepto_g.strip():
+                st.warning("⚠️ El concepto es obligatorio.")
+            else:
+                insertar_gasto(str(fecha_g), concepto_g.strip(), monto_g, observacion_g.strip())
+                st.success("✅ Gasto registrado")
+                st.rerun()
+
+    st.divider()
+
+    # ----------- HISTORIAL Y BALANCE -----------
+    st.subheader("📊 Resumen de movimientos")
+
+    ingresos = obtener_ingresos()
+    gastos = obtener_gastos()
+
+    df_i = pd.DataFrame(ingresos) if ingresos else pd.DataFrame()
+    df_g = pd.DataFrame(gastos) if gastos else pd.DataFrame()
+
+    total_i = sum(i["monto"] for i in ingresos)
+    total_g = sum(g["monto"] for g in gastos)
+    balance = total_i - total_g
+    color = "green" if balance >= 0 else "red"
+
+    st.markdown(f"**💰 Total Ingresos:** ₡{total_i:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    st.markdown(f"**💸 Total Gastos:** ₡{total_g:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    st.markdown(
+        f"<strong>🧾 Balance general:</strong> <span style='color:{color}; font-weight:bold;'>₡{balance:,.2f}</span>"
+        .replace(",", "X").replace(".", ",").replace("X", "."), unsafe_allow_html=True
+    )
+
+    st.divider()
+
+    # ----------- LISTADOS Y DESCARGA -----------
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### 📋 Ingresos")
+        if not df_i.empty:
+            df_i["fecha"] = pd.to_datetime(df_i["fecha"]).dt.strftime("%d/%m/%Y")
+            df_i["monto"] = df_i["monto"].map(lambda x: round(x, 2))
+            for ingreso in ingresos:
+                id = ingreso["id"]
+                editando = st.session_state.get(f"edit_ingreso_{id}", False)
+
+                if editando:
+                    st.markdown(f"#### ✏️ Editando ingreso ID {id}")
+                    f = st.date_input("Fecha", value=pd.to_datetime(ingreso["fecha"]), key=f"fecha_i_{id}")
+                    c = st.text_input("Concepto", value=ingreso["concepto"], key=f"concepto_i_{id}")
+                    m = st.number_input("Monto (₡)", value=float(ingreso["monto"]), key=f"monto_i_{id}", step=500.0)
+                    o = st.text_input("Observación", value=ingreso["observacion"] or "", key=f"obs_i_{id}")
+                    col1a, col2a = st.columns(2)
+                    if col1a.button("💾 Guardar", key=f"guardar_i_{id}"):
+                        actualizar_ingreso(id, {"fecha": str(f), "concepto": c, "monto": m, "observacion": o})
+                        st.session_state[f"edit_ingreso_{id}"] = False
+                        st.rerun()
+                    if col2a.button("❌ Cancelar", key=f"cancelar_i_{id}"):
+                        st.session_state[f"edit_ingreso_{id}"] = False
+                        st.rerun()
+                else:
+                    st.markdown(f"📅 {ingreso['fecha']} | 💰 ₡{ingreso['monto']:,.2f} | 📄 {ingreso['concepto']}")
+                    st.markdown(f"📝 {ingreso['observacion'] or '—'}")
+                    col1b, col2b = st.columns(2)
+                    if col1b.button("✏️ Editar", key=f"editar_i_{id}"):
+                        st.session_state[f"edit_ingreso_{id}"] = True
+                        st.rerun()
+                    if col2b.button("🗑️ Eliminar", key=f"eliminar_i_{id}"):
+                        eliminar_ingreso(id)
+                        st.success("✅ Ingreso eliminado")
+                        st.rerun()
+        else:
+            st.info("No hay ingresos registrados.")
+
+    with col2:
+        st.markdown("### 📋 Gastos")
+        if not df_g.empty:
+            df_g["fecha"] = pd.to_datetime(df_g["fecha"]).dt.strftime("%d/%m/%Y")
+            df_g["monto"] = df_g["monto"].map(lambda x: round(x, 2))
+            for gasto in gastos:
+                id = gasto["id"]
+                editando = st.session_state.get(f"edit_gasto_{id}", False)
+
+                if editando:
+                    st.markdown(f"#### ✏️ Editando gasto ID {id}")
+                    f = st.date_input("Fecha", value=pd.to_datetime(gasto["fecha"]), key=f"fecha_g_{id}")
+                    c = st.text_input("Concepto", value=gasto["concepto"], key=f"concepto_g_{id}")
+                    m = st.number_input("Monto (₡)", value=float(gasto["monto"]), key=f"monto_g_{id}", step=500.0)
+                    o = st.text_input("Observación", value=gasto["observacion"] or "", key=f"obs_g_{id}")
+                    col1a, col2a = st.columns(2)
+                    if col1a.button("💾 Guardar", key=f"guardar_g_{id}"):
+                        actualizar_gasto(id, {"fecha": str(f), "concepto": c, "monto": m, "observacion": o})
+                        st.session_state[f"edit_gasto_{id}"] = False
+                        st.rerun()
+                    if col2a.button("❌ Cancelar", key=f"cancelar_g_{id}"):
+                        st.session_state[f"edit_gasto_{id}"] = False
+                        st.rerun()
+                else:
+                    st.markdown(f"📅 {gasto['fecha']} | 💸 ₡{gasto['monto']:,.2f} | 📄 {gasto['concepto']}")
+                    st.markdown(f"📝 {gasto['observacion'] or '—'}")
+                    col1b, col2b = st.columns(2)
+                    if col1b.button("✏️ Editar", key=f"editar_g_{id}"):
+                        st.session_state[f"edit_gasto_{id}"] = True
+                        st.rerun()
+                    if col2b.button("🗑️ Eliminar", key=f"eliminar_g_{id}"):
+                        eliminar_gasto(id)
+                        st.success("✅ Gasto eliminado")
+                        st.rerun()
+        else:
+            st.info("No hay gastos registrados.")
 
 
 
