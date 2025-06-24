@@ -40,6 +40,12 @@ def insertar_producto(nombre, descripcion, stock, precio_unitario):
 def obtener_productos():
     return supabase.table("productos").select("*").order("id", desc=False).execute().data
 
+def actualizar_producto(producto_id, data_actualizada):
+    return supabase.table("productos").update(data_actualizada).eq("id", producto_id).execute()
+
+def eliminar_producto(producto_id):
+    return supabase.table("productos").delete().eq("id", producto_id).execute()
+
 # ----------------- 📅 CITAS -----------------
 def insertar_cita(fecha, hora, cliente_nombre, barbero, servicio):
     data = {
@@ -47,7 +53,7 @@ def insertar_cita(fecha, hora, cliente_nombre, barbero, servicio):
         "hora": hora,
         "cliente_nombre": cliente_nombre,
         "barbero": barbero,
-        "service": servicio,
+        "servicio": servicio,
         "estado": "pendiente"
     }
     return supabase.table("citas").insert(data).execute()
@@ -57,6 +63,12 @@ def obtener_citas():
 
 def actualizar_estado_cita(cita_id, nuevo_estado):
     return supabase.table("citas").update({"estado": nuevo_estado}).eq("id", cita_id).execute()
+
+def actualizar_cita(cita_id, data_actualizada):
+    return supabase.table("citas").update(data_actualizada).eq("id", cita_id).execute()
+
+def eliminar_cita(cita_id):
+    return supabase.table("citas").delete().eq("id", cita_id).execute()
 
 # ----------------- 💵 INGRESOS -----------------
 def insertar_ingreso(fecha, concepto, monto, observacion=""):
@@ -71,6 +83,12 @@ def insertar_ingreso(fecha, concepto, monto, observacion=""):
 def obtener_ingresos():
     return supabase.table("ingresos").select("*").order("fecha", desc=True).execute().data
 
+def actualizar_ingreso(ingreso_id, data_actualizada):
+    return supabase.table("ingresos").update(data_actualizada).eq("id", ingreso_id).execute()
+
+def eliminar_ingreso(ingreso_id):
+    return supabase.table("ingresos").delete().eq("id", ingreso_id).execute()
+
 # ----------------- 💸 GASTOS -----------------
 def insertar_gasto(fecha, concepto, monto, observacion=""):
     data = {
@@ -80,6 +98,16 @@ def insertar_gasto(fecha, concepto, monto, observacion=""):
         "observacion": observacion or None
     }
     return supabase.table("gastos").insert(data).execute()
+
+def obtener_gastos():
+    return supabase.table("gastos").select("*").order("fecha", desc=True).execute().data
+
+def actualizar_gasto(gasto_id, data_actualizada):
+    return supabase.table("gastos").update(data_actualizada).eq("id", gasto_id).execute()
+
+def eliminar_gasto(gasto_id):
+    return supabase.table("gastos").delete().eq("id", gasto_id).execute()
+
 
 def obtener_gastos():
     return supabase.table("gastos").select("*").order("fecha", desc=True).execute().data
