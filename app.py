@@ -255,13 +255,12 @@ elif menu == "📅 Citas":
         if estado_filtro != "todas":
             df = df[df["estado"] == estado_filtro]
 
-        df["fecha"] = pd.to_datetime(df["fecha"]).dt.strftime("%d/%m/%Y")
-
         for cita in df.itertuples():
             with st.container():
                 st.markdown(f"### 🧾 Cita ID {cita.id}")
                 col1, col2, col3 = st.columns(3)
-                col1.markdown(f"**📅 Fecha:** {cita.fecha}")
+                fecha_str = cita.fecha.strftime("%d/%m/%Y") if not isinstance(cita.fecha, str) else cita.fecha
+                col1.markdown(f"**📅 Fecha:** {fecha_str}")
                 col2.markdown(f"**🕒 Hora:** {cita.hora}")
                 col3.markdown(f"**🧴 Servicio:** {cita.servicio}")
                 st.markdown(f"**👤 Cliente:** {cita.cliente_nombre}")
@@ -269,14 +268,24 @@ elif menu == "📅 Citas":
                 st.markdown(f"**📌 Estado actual:** `{cita.estado}`")
 
                 with st.expander("✏️ Editar cita"):
-                    nueva_fecha = st.date_input("📅 Nueva fecha", value=datetime.strptime(cita.fecha, "%d/%m/%Y"), key=f"fecha_{cita.id}")
-                    
+                    # Convertir fecha a formato compatible
+                    if isinstance(cita.fecha, str):
+                        try:
+                            valor_fecha = datetime.strptime(cita.fecha, "%d/%m/%Y").date()
+                        except ValueError:
+                            valor_fecha = datetime.strptime(cita.fecha, "%Y-%m-%d").date()
+                    else:
+                        valor_fecha = cita.fecha
+
+                    nueva_fecha = st.date_input("📅 Nueva fecha", value=valor_fecha, key=f"fecha_{cita.id}")
+
+                    # Convertir hora a formato time
                     try:
                         hora_original = datetime.strptime(cita.hora, "%H:%M").time()
                     except ValueError:
                         hora_original = datetime.strptime(cita.hora, "%H:%M:%S").time()
-                    nueva_hora = st.time_input("🕒 Nueva hora", value=hora_original, key=f"hora_{cita.id}")
 
+                    nueva_hora = st.time_input("🕒 Nueva hora", value=hora_original, key=f"hora_{cita.id}")
                     nuevo_barbero = st.text_input("✂️ Asignar barbero", value=cita.barbero or "", key=f"barbero_{cita.id}")
                     nueva_fecha_str = nueva_fecha.strftime("%Y-%m-%d")
                     nueva_hora_str = nueva_hora.strftime("%H:%M")
