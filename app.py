@@ -139,6 +139,60 @@ if menu == "✂️ Registro de Cortes":
                         st.rerun()
     else:
         st.info("Aún no se han registrado cortes.")
+# ---------------------------------------------
+# 📦 PESTAÑA 2: Inventario
+# ---------------------------------------------
+elif menu == "📦 Inventario":
+    from database import insertar_producto, obtener_productos  # puedes agregar otras funciones luego
+
+    st.title("📦 Control de Inventario")
+    st.markdown("Administra los productos disponibles y su stock en tiempo real.")
+
+    # ---------- FORMULARIO NUEVO PRODUCTO ----------
+    st.subheader("➕ Agregar nuevo producto")
+
+    with st.form("form_nuevo_producto"):
+        col1, col2 = st.columns(2)
+        nombre = col1.text_input("Nombre del producto")
+        precio_unitario = col2.number_input("Precio unitario (₡)", min_value=0.0, step=100.0, format="%.2f")
+        descripcion = st.text_input("Descripción (opcional)")
+        stock = st.number_input("Stock inicial", min_value=0, step=1)
+        enviado = st.form_submit_button("💾 Guardar producto")
+
+        if enviado:
+            if not nombre.strip():
+                st.warning("⚠️ El nombre del producto es obligatorio.")
+            elif stock < 0:
+                st.warning("⚠️ El stock no puede ser negativo.")
+            else:
+                insertar_producto(nombre.strip(), descripcion, stock, precio_unitario)
+                st.success("✅ Producto registrado correctamente")
+                st.rerun()
+
+    st.divider()
+
+    # ---------- LISTADO DE PRODUCTOS ----------
+    st.subheader("📋 Productos en inventario")
+
+    productos = obtener_productos()
+    if productos:
+        df_prod = pd.DataFrame(productos)
+        df_prod["precio_unitario"] = df_prod["precio_unitario"].map(lambda x: round(x, 2))
+
+        # Excel export
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df_prod.to_excel(writer, index=False, sheet_name="Productos")
+        st.download_button(
+            label="⬇️ Descargar inventario en Excel",
+            data=output.getvalue(),
+            file_name="inventario_productos.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        st.dataframe(df_prod, use_container_width=True)
+    else:
+        st.info("No hay productos registrados.")
 
 
 
