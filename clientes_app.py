@@ -21,13 +21,16 @@ fecha = st.date_input("📅 Fecha", min_value=date.today())
 # ---------- FUNCIONES ----------
 def generar_horarios_del_dia(fecha):
     citas = obtener_citas()
+    if not citas:
+        return []
+
     df = pd.DataFrame(citas)
 
-    # Verificar que las columnas necesarias existan
+    # Validar que las columnas necesarias existan
     if "fecha" not in df.columns or "hora" not in df.columns or "estado" not in df.columns:
-        df = pd.DataFrame(columns=["fecha", "hora", "estado"])
+        return []
 
-    df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce").dt.date
+    df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
 
     horarios_dia = []
     actual = datetime.combine(fecha, datetime.min.time()).replace(hour=HORARIO_INICIO)
@@ -61,8 +64,11 @@ estado_emojis = {
     "aceptada": "✅ Aceptada",
     "rechazada": "❌ Rechazada"
 }
-df_horarios["estado"] = df_horarios["estado"].map(estado_emojis)
-st.dataframe(df_horarios, use_container_width=True)
+if not df_horarios.empty:
+    df_horarios["estado"] = df_horarios["estado"].map(estado_emojis)
+    st.dataframe(df_horarios, use_container_width=True)
+else:
+    st.info("No hay información de horarios aún.")
 
 # ---------- AGENDAR SI HAY DISPONIBLES ----------
 horas_disponibles = [h["hora"] for h in horarios if h["estado"] == "disponible"]
@@ -79,7 +85,7 @@ if horas_disponibles:
         else:
             insertar_cita(str(fecha), hora, cliente_nombre.strip(), "", servicio)
             st.success("✅ Cita registrada. Espera aprobación del administrador.")
-            st.experimental_rerun()
+            st.rerun()
 else:
     st.warning("⛔ No hay horarios disponibles para esta fecha.")
 
