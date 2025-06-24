@@ -38,7 +38,7 @@ def insertar_producto(nombre, descripcion, stock, precio_unitario):
     return supabase.table("productos").insert(data).execute()
 
 def obtener_productos():
-    return supabase.table("productos").select("*").order("id", asc=True).execute().data
+    return supabase.table("productos").select("*").order("id", "asc").execute().data
 
 # ----------------- CITAS -----------------
 def insertar_cita(fecha, hora, cliente_nombre, barbero, servicio):
