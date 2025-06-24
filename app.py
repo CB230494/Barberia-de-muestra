@@ -236,7 +236,7 @@ elif menu == "📦 Inventario":
 # 📅 PESTAÑA: Gestión de Citas
 # ---------------------------------------------
 elif menu == "📅 Citas":
-    from database import obtener_citas, actualizar_estado_cita, actualizar_corte, eliminar_corte
+    from database import obtener_citas, actualizar_estado_cita, actualizar_cita, eliminar_cita
     from datetime import datetime, date, time
     import pandas as pd
 
@@ -259,7 +259,7 @@ elif menu == "📅 Citas":
             with st.container():
                 st.markdown(f"### 🧾 Cita ID {cita.id}")
                 col1, col2, col3 = st.columns(3)
-                fecha_str = cita.fecha if isinstance(cita.fecha, str) else cita.fecha.strftime("%d/%m/%Y")
+                fecha_str = cita.fecha.strftime("%d/%m/%Y") if not isinstance(cita.fecha, str) else cita.fecha
                 col1.markdown(f"**📅 Fecha:** {fecha_str}")
                 col2.markdown(f"**🕒 Hora:** {cita.hora}")
                 col3.markdown(f"**🧴 Servicio:** {cita.servicio}")
@@ -268,7 +268,7 @@ elif menu == "📅 Citas":
                 st.markdown(f"**📌 Estado actual:** `{cita.estado}`")
 
                 with st.expander("✏️ Editar cita"):
-                    # Convertir fecha si viene como string
+                    # Convertir fecha a formato compatible
                     if isinstance(cita.fecha, str):
                         try:
                             valor_fecha = datetime.strptime(cita.fecha, "%d/%m/%Y").date()
@@ -279,6 +279,7 @@ elif menu == "📅 Citas":
 
                     nueva_fecha = st.date_input("📅 Nueva fecha", value=valor_fecha, key=f"fecha_{cita.id}")
 
+                    # Convertir hora a formato time
                     try:
                         hora_original = datetime.strptime(cita.hora, "%H:%M").time()
                     except ValueError:
@@ -286,19 +287,21 @@ elif menu == "📅 Citas":
 
                     nueva_hora = st.time_input("🕒 Nueva hora", value=hora_original, key=f"hora_{cita.id}")
                     nuevo_barbero = st.text_input("✂️ Asignar barbero", value=cita.barbero or "", key=f"barbero_{cita.id}")
+                    nueva_fecha_str = nueva_fecha.strftime("%Y-%m-%d")
+                    nueva_hora_str = nueva_hora.strftime("%H:%M")
 
                     col_e1, col_e2 = st.columns(2)
                     if col_e1.button("💾 Guardar cambios", key=f"guardar_cita_{cita.id}"):
-                        actualizar_corte(cita.id, {
-                            "fecha": nueva_fecha.strftime("%Y-%m-%d"),
-                            "hora": nueva_hora.strftime("%H:%M"),
+                        actualizar_cita(cita.id, {
+                            "fecha": nueva_fecha_str,
+                            "hora": nueva_hora_str,
                             "barbero": nuevo_barbero
                         })
                         st.success("✅ Cita actualizada")
                         st.rerun()
 
                     if col_e2.button("🗑️ Eliminar cita", key=f"eliminar_cita_{cita.id}"):
-                        eliminar_corte(cita.id)
+                        eliminar_cita(cita.id)
                         st.success("✅ Cita eliminada")
                         st.rerun()
 
