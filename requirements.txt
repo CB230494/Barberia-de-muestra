@@ -3,5 +3,5 @@ pandas
 openpyxl
 python-dotenv
 supabase
-matplotlib
+
 
