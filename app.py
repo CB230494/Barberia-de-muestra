@@ -232,110 +232,72 @@ elif menu == "📦 Inventario":
     else:
         st.info("No hay productos registrados todavía.")
 # ---------------------------------------------
-# 📅 PESTAÑA 3: Citas
+# 📅 PESTAÑA: Gestión de Citas
 # ---------------------------------------------
 elif menu == "📅 Citas":
-    from database import (
-        insertar_cita,
-        obtener_citas,
-        actualizar_cita,
-        actualizar_estado_cita,
-        eliminar_cita
-    )
-    from datetime import datetime, time
+    from database import obtener_citas, actualizar_estado_cita, actualizar_corte, eliminar_corte
 
     st.title("📅 Gestión de Citas")
-    st.markdown("Administra las citas agendadas por clientes.")
-
-    # ---------- NUEVA CITA MANUAL ----------
-    st.subheader("➕ Registrar nueva cita manualmente")
-
-    with st.form("form_nueva_cita"):
-        col1, col2 = st.columns(2)
-        fecha = col1.date_input("Fecha de la cita", value=date.today())
-        hora = col2.time_input("Hora de la cita", value=time(8, 0))
-        cliente = st.text_input("Nombre del cliente")
-        barbero = st.text_input("Barbero asignado")
-        servicio = st.selectbox("Servicio solicitado", ["Corte", "Barba", "Corte + Barba", "Otro"])
-        enviado = st.form_submit_button("💾 Registrar cita")
-
-        if enviado:
-            if not cliente or not barbero:
-                st.warning("⚠️ Todos los campos son obligatorios.")
-            else:
-                insertar_cita(str(fecha), str(hora), cliente, barbero, servicio)
-                st.success("✅ Cita registrada correctamente")
-                st.rerun()
-
-    st.divider()
-
-    # ---------- VISUALIZAR CITA ----------
-    st.subheader("📋 Citas agendadas")
+    st.markdown("Revisa y administra las citas solicitadas por los clientes.")
 
     citas = obtener_citas()
-    if citas:
-        df = pd.DataFrame(citas)
-        df["fecha"] = pd.to_datetime(df["fecha"]).dt.strftime("%d/%m/%Y")
-        df["hora"] = df["hora"].str.slice(0, 5)
+    df = pd.DataFrame(citas)
 
-        # Botón descarga
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            df.to_excel(writer, index=False, sheet_name="Citas")
-        st.download_button(
-            label="⬇️ Descargar citas en Excel",
-            data=output.getvalue(),
-            file_name="citas_agendadas.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-        for cita in citas:
-            id_cita = cita["id"]
-            editando = st.session_state.get(f"edit_cita_{id_cita}", False)
-
-            if editando:
-                st.markdown(f"### ✏️ Editando cita ID {id_cita}")
-                col1, col2 = st.columns(2)
-                f = col1.date_input("Fecha", value=pd.to_datetime(cita["fecha"]), key=f"fecha_{id_cita}")
-                h = col2.time_input("Hora", value=datetime.strptime(cita["hora"], "%H:%M:%S").time(), key=f"hora_{id_cita}")
-                c = st.text_input("Cliente", value=cita["cliente_nombre"], key=f"cliente_{id_cita}")
-                b = st.text_input("Barbero", value=cita["barbero"], key=f"barbero_{id_cita}")
-                s = st.selectbox("Servicio", ["Corte", "Barba", "Corte + Barba", "Otro"], key=f"servicio_{id_cita}")
-                estado = st.selectbox("Estado", ["pendiente", "aceptada", "rechazada"], index=["pendiente", "aceptada", "rechazada"].index(cita["estado"]), key=f"estado_{id_cita}")
-
-                col1, col2 = st.columns(2)
-                if col1.button("💾 Guardar", key=f"guardar_cita_{id_cita}"):
-                    actualizar_cita(id_cita, {
-                        "fecha": str(f),
-                        "hora": str(h),
-                        "cliente_nombre": c,
-                        "barbero": b,
-                        "servicio": s,
-                        "estado": estado
-                    })
-                    st.session_state[f"edit_cita_{id_cita}"] = False
-                    st.success("✅ Cita actualizada")
-                    st.rerun()
-                if col2.button("❌ Cancelar", key=f"cancelar_cita_{id_cita}"):
-                    st.session_state[f"edit_cita_{id_cita}"] = False
-                    st.rerun()
-            else:
-                cols = st.columns([1.5, 1, 2, 2, 2, 1.5, 1, 1])
-                cols[0].markdown(f"📅 **{cita['fecha']}**")
-                cols[1].markdown(f"⏰ {cita['hora'][:5]}")
-                cols[2].markdown(f"👤 {cita['cliente_nombre']}")
-                cols[3].markdown(f"💈 {cita['barbero']}")
-                cols[4].markdown(f"✂️ {cita['servicio']}")
-                cols[5].markdown(f"🟢 Estado: `{cita['estado']}`")
-                if cols[6].button("✏️", key=f"edit_{id_cita}"):
-                    st.session_state[f"edit_cita_{id_cita}"] = True
-                    st.rerun()
-                if cols[7].button("🗑️", key=f"del_{id_cita}"):
-                    eliminar_cita(id_cita)
-                    st.success("✅ Cita eliminada")
-                    st.rerun()
-    else:
+    if df.empty:
         st.info("No hay citas registradas.")
+    else:
+        estados = ["todas", "pendiente", "aceptada", "rechazada"]
+        estado_filtro = st.selectbox("🔍 Filtrar por estado", estados)
+
+        if estado_filtro != "todas":
+            df = df[df["estado"] == estado_filtro]
+
+        df["fecha"] = pd.to_datetime(df["fecha"]).dt.strftime("%d/%m/%Y")
+
+        for cita in df.itertuples():
+            with st.container():
+                st.markdown(f"### 🧾 Cita ID {cita.id}")
+                col1, col2, col3 = st.columns(3)
+                col1.markdown(f"**📅 Fecha:** {cita.fecha}")
+                col2.markdown(f"**🕒 Hora:** {cita.hora}")
+                col3.markdown(f"**🧴 Servicio:** {cita.servicio}")
+                st.markdown(f"**👤 Cliente:** {cita.cliente_nombre}")
+                st.markdown(f"**✂️ Barbero asignado:** {cita.barbero or 'Sin asignar'}")
+                st.markdown(f"**📌 Estado actual:** `{cita.estado}`")
+
+                with st.expander("✏️ Editar cita"):
+                    nueva_fecha = st.date_input("📅 Nueva fecha", value=datetime.strptime(cita.fecha, "%d/%m/%Y"), key=f"fecha_{cita.id}")
+                    nueva_hora = st.time_input("🕒 Nueva hora", value=datetime.strptime(cita.hora, "%H:%M").time(), key=f"hora_{cita.id}")
+                    nuevo_barbero = st.text_input("✂️ Asignar barbero", value=cita.barbero or "", key=f"barbero_{cita.id}")
+                    nueva_fecha_str = nueva_fecha.strftime("%Y-%m-%d")
+                    nueva_hora_str = nueva_hora.strftime("%H:%M")
+
+                    col_e1, col_e2 = st.columns(2)
+                    if col_e1.button("💾 Guardar cambios", key=f"guardar_cita_{cita.id}"):
+                        actualizar_corte(cita.id, {
+                            "fecha": nueva_fecha_str,
+                            "hora": nueva_hora_str,
+                            "barbero": nuevo_barbero
+                        })
+                        st.success("✅ Cita actualizada")
+                        st.rerun()
+
+                    if col_e2.button("🗑️ Eliminar cita", key=f"eliminar_cita_{cita.id}"):
+                        eliminar_corte(cita.id)
+                        st.success("✅ Cita eliminada")
+                        st.rerun()
+
+                col_a1, col_a2 = st.columns(2)
+                if cita.estado == "pendiente":
+                    if col_a1.button("✅ Aceptar", key=f"aceptar_{cita.id}"):
+                        actualizar_estado_cita(cita.id, "aceptada")
+                        st.success("📬 Cita aceptada")
+                        st.rerun()
+                    if col_a2.button("❌ Rechazar", key=f"rechazar_{cita.id}"):
+                        actualizar_estado_cita(cita.id, "rechazada")
+                        st.warning("📭 Cita rechazada")
+                        st.rerun()
+
 # ---------------------------------------------
 # 💵 PESTAÑA 4: Finanzas
 # ---------------------------------------------
