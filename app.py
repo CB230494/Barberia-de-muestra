@@ -259,7 +259,7 @@ elif menu == "📅 Citas":
             with st.container():
                 st.markdown(f"### 🧾 Cita ID {cita.id}")
                 col1, col2, col3 = st.columns(3)
-                fecha_str = cita.fecha.strftime("%d/%m/%Y") if not isinstance(cita.fecha, str) else cita.fecha
+                fecha_str = cita.fecha if isinstance(cita.fecha, str) else cita.fecha.strftime("%d/%m/%Y")
                 col1.markdown(f"**📅 Fecha:** {fecha_str}")
                 col2.markdown(f"**🕒 Hora:** {cita.hora}")
                 col3.markdown(f"**🧴 Servicio:** {cita.servicio}")
@@ -268,7 +268,7 @@ elif menu == "📅 Citas":
                 st.markdown(f"**📌 Estado actual:** `{cita.estado}`")
 
                 with st.expander("✏️ Editar cita"):
-                    # Convertir fecha a formato compatible
+                    # Convertir fecha si viene como string
                     if isinstance(cita.fecha, str):
                         try:
                             valor_fecha = datetime.strptime(cita.fecha, "%d/%m/%Y").date()
@@ -279,7 +279,6 @@ elif menu == "📅 Citas":
 
                     nueva_fecha = st.date_input("📅 Nueva fecha", value=valor_fecha, key=f"fecha_{cita.id}")
 
-                    # Convertir hora a formato time
                     try:
                         hora_original = datetime.strptime(cita.hora, "%H:%M").time()
                     except ValueError:
@@ -287,14 +286,12 @@ elif menu == "📅 Citas":
 
                     nueva_hora = st.time_input("🕒 Nueva hora", value=hora_original, key=f"hora_{cita.id}")
                     nuevo_barbero = st.text_input("✂️ Asignar barbero", value=cita.barbero or "", key=f"barbero_{cita.id}")
-                    nueva_fecha_str = nueva_fecha.strftime("%Y-%m-%d")
-                    nueva_hora_str = nueva_hora.strftime("%H:%M")
 
                     col_e1, col_e2 = st.columns(2)
                     if col_e1.button("💾 Guardar cambios", key=f"guardar_cita_{cita.id}"):
                         actualizar_corte(cita.id, {
-                            "fecha": nueva_fecha_str,
-                            "hora": nueva_hora_str,
+                            "fecha": nueva_fecha.strftime("%Y-%m-%d"),
+                            "hora": nueva_hora.strftime("%H:%M"),
                             "barbero": nuevo_barbero
                         })
                         st.success("✅ Cita actualizada")
