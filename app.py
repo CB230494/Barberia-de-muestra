@@ -143,14 +143,18 @@ if menu == "✂️ Registro de Cortes":
 # 📦 PESTAÑA 2: Inventario
 # ---------------------------------------------
 elif menu == "📦 Inventario":
-    from database import insertar_producto, obtener_productos  # puedes añadir editar/eliminar más adelante
+    from database import (
+        insertar_producto,
+        obtener_productos,
+        actualizar_producto,
+        eliminar_producto
+    )
 
     st.title("📦 Inventario de Productos")
-    st.markdown("Registra productos para su venta en la barbería y controla su stock.")
+    st.markdown("Administra los productos disponibles y su stock.")
 
-    # ---------- FORMULARIO: AGREGAR PRODUCTO ----------
+    # ---------- AGREGAR PRODUCTO ----------
     st.subheader("➕ Agregar nuevo producto")
-
     with st.form("form_nuevo_producto"):
         col1, col2 = st.columns(2)
         nombre = col1.text_input("Nombre del producto")
@@ -162,8 +166,6 @@ elif menu == "📦 Inventario":
         if enviado:
             if not nombre.strip():
                 st.warning("⚠️ El nombre del producto es obligatorio.")
-            elif stock < 0:
-                st.warning("⚠️ El stock no puede ser negativo.")
             else:
                 insertar_producto(nombre.strip(), descripcion.strip(), stock, precio_unitario)
                 st.success("✅ Producto registrado correctamente")
@@ -173,16 +175,15 @@ elif menu == "📦 Inventario":
 
     # ---------- LISTADO DE PRODUCTOS ----------
     st.subheader("📋 Productos en inventario")
-
     productos = obtener_productos()
-    if productos:
-        df_prod = pd.DataFrame(productos)
-        df_prod["precio_unitario"] = df_prod["precio_unitario"].map(lambda x: round(x, 2))
 
-        # Botón de descarga Excel
+    if productos:
+        df = pd.DataFrame(productos)
+        df["precio_unitario"] = df["precio_unitario"].map(lambda x: round(x, 2))
+
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            df_prod.to_excel(writer, index=False, sheet_name="Productos")
+            df.to_excel(writer, index=False, sheet_name="Productos")
         st.download_button(
             label="⬇️ Descargar inventario en Excel",
             data=output.getvalue(),
@@ -190,9 +191,47 @@ elif menu == "📦 Inventario":
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        st.dataframe(df_prod, use_container_width=True)
+        for producto in productos:
+            id_producto = producto["id"]
+            editando = st.session_state.get(f"edit_prod_{id_producto}", False)
+
+            if editando:
+                st.markdown(f"### ✏️ Editando producto ID {id_producto}")
+                col1, col2 = st.columns(2)
+                nombre_edit = col1.text_input("Nombre", value=producto["nombre"], key=f"nombre_{id_producto}")
+                precio_edit = col2.number_input("Precio (₡)", value=float(producto["precio_unitario"]), step=100.0, format="%.2f", key=f"precio_{id_producto}")
+                descripcion_edit = st.text_input("Descripción", value=producto["descripcion"] or "", key=f"desc_{id_producto}")
+                stock_edit = st.number_input("Stock", value=int(producto["stock"]), step=1, key=f"stock_{id_producto}")
+                col1, col2 = st.columns(2)
+                if col1.button("💾 Guardar", key=f"guardar_{id_producto}"):
+                    actualizar_producto(id_producto, {
+                        "nombre": nombre_edit,
+                        "precio_unitario": precio_edit,
+                        "descripcion": descripcion_edit,
+                        "stock": stock_edit
+                    })
+                    st.session_state[f"edit_prod_{id_producto}"] = False
+                    st.success("✅ Producto actualizado")
+                    st.rerun()
+                if col2.button("❌ Cancelar", key=f"cancelar_{id_producto}"):
+                    st.session_state[f"edit_prod_{id_producto}"] = False
+                    st.rerun()
+            else:
+                cols = st.columns([2, 2, 2, 2, 1, 1])
+                cols[0].markdown(f"📦 **{producto['nombre']}**")
+                cols[1].markdown(f"🧾 {producto['descripcion'] or '—'}")
+                cols[2].markdown(f"💰 ₡{producto['precio_unitario']:,.2f}")
+                cols[3].markdown(f"📦 Stock: {producto['stock']}")
+                if cols[4].button("✏️", key=f"edit_{id_producto}"):
+                    st.session_state[f"edit_prod_{id_producto}"] = True
+                    st.rerun()
+                if cols[5].button("🗑️", key=f"del_{id_producto}"):
+                    eliminar_producto(id_producto)
+                    st.success("✅ Producto eliminado")
+                    st.rerun()
     else:
         st.info("No hay productos registrados todavía.")
+
 
 
 
