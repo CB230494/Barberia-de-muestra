@@ -237,6 +237,8 @@ elif menu == "📦 Inventario":
 # ---------------------------------------------
 elif menu == "📅 Citas":
     from database import obtener_citas, actualizar_estado_cita, actualizar_corte, eliminar_corte
+    from datetime import datetime, date, time
+    import pandas as pd
 
     st.title("📅 Gestión de Citas")
     st.markdown("Revisa y administra las citas solicitadas por los clientes.")
@@ -268,7 +270,13 @@ elif menu == "📅 Citas":
 
                 with st.expander("✏️ Editar cita"):
                     nueva_fecha = st.date_input("📅 Nueva fecha", value=datetime.strptime(cita.fecha, "%d/%m/%Y"), key=f"fecha_{cita.id}")
-                    nueva_hora = st.time_input("🕒 Nueva hora", value=datetime.strptime(cita.hora, "%H:%M").time(), key=f"hora_{cita.id}")
+                    
+                    try:
+                        hora_original = datetime.strptime(cita.hora, "%H:%M").time()
+                    except ValueError:
+                        hora_original = datetime.strptime(cita.hora, "%H:%M:%S").time()
+                    nueva_hora = st.time_input("🕒 Nueva hora", value=hora_original, key=f"hora_{cita.id}")
+
                     nuevo_barbero = st.text_input("✂️ Asignar barbero", value=cita.barbero or "", key=f"barbero_{cita.id}")
                     nueva_fecha_str = nueva_fecha.strftime("%Y-%m-%d")
                     nueva_hora_str = nueva_hora.strftime("%H:%M")
@@ -298,6 +306,7 @@ elif menu == "📅 Citas":
                         actualizar_estado_cita(cita.id, "rechazada")
                         st.warning("📭 Cita rechazada")
                         st.rerun()
+
 
 # ---------------------------------------------
 # 💵 PESTAÑA 4: Finanzas
