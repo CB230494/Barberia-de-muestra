@@ -6,8 +6,8 @@
 import streamlit as st
 import pandas as pd
 import io
-from datetime import date
 from datetime import datetime, date, time
+
 from database import (
     insertar_corte,
     obtener_cortes,
