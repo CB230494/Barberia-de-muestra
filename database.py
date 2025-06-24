@@ -108,8 +108,3 @@ def actualizar_gasto(gasto_id, data_actualizada):
 def eliminar_gasto(gasto_id):
     return supabase.table("gastos").delete().eq("id", gasto_id).execute()
 
-
-def obtener_gastos():
-    return supabase.table("gastos").select("*").order("fecha", desc=True).execute().data
-
-
