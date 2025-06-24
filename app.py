@@ -493,7 +493,6 @@ elif menu == "💵 Finanzas":
 # ---------------------------------------------
 elif menu == "📊 Reporte General":
     from database import obtener_cortes, obtener_ingresos, obtener_gastos
-    import matplotlib.pyplot as plt
 
     st.title("📊 Reporte General")
     st.markdown("Resumen de actividad y finanzas por período de tiempo.")
@@ -526,9 +525,10 @@ elif menu == "📊 Reporte General":
     st.subheader("💈 Cortes realizados")
     if not df_cortes.empty:
         total_cortes = len(df_cortes)
-        total_por_barbero = df_cortes["barbero"].value_counts()
+        total_por_barbero = df_cortes["barbero"].value_counts().reset_index()
+        total_por_barbero.columns = ["Barbero", "Cantidad de cortes"]
         st.markdown(f"**Total de cortes:** {total_cortes}")
-        st.bar_chart(total_por_barbero)
+        st.dataframe(total_por_barbero, use_container_width=True)
     else:
         st.info("No hay cortes registrados en el rango seleccionado.")
 
