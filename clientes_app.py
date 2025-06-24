@@ -20,13 +20,19 @@ fecha = st.date_input("📅 Fecha", min_value=date.today())
 
 # ---------- FUNCIONES ----------
 def generar_horarios_del_dia(fecha):
-    citas = obtener_citas()
-    df = pd.DataFrame(citas)
+    try:
+        citas = obtener_citas()
+        df = pd.DataFrame(citas)
 
-    if df.empty or not {"fecha", "hora", "estado"}.issubset(df.columns):
-        return []
+        if not {"fecha", "hora", "estado"}.issubset(df.columns):
+            df = pd.DataFrame(columns=["fecha", "hora", "estado"])
 
-    df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+        df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+        df["hora"] = df["hora"].astype(str).str[:5]  # Formato HH:MM
+
+    except Exception as e:
+        st.warning(f"⚠️ Error al procesar citas: {e}")
+        df = pd.DataFrame(columns=["fecha", "hora", "estado"])
 
     horarios_dia = []
     actual = datetime.combine(fecha, datetime.min.time()).replace(hour=HORARIO_INICIO)
@@ -52,6 +58,7 @@ def generar_horarios_del_dia(fecha):
 # ---------- MOSTRAR RESUMEN ----------
 st.subheader("📋 Horarios para el día seleccionado")
 horarios = generar_horarios_del_dia(fecha)
+df_horarios = pd.DataFrame(horarios)
 
 estado_emojis = {
     "disponible": "🟢 Disponible",
@@ -60,8 +67,7 @@ estado_emojis = {
     "rechazada": "❌ Rechazada"
 }
 
-if horarios:
-    df_horarios = pd.DataFrame(horarios)
+if not df_horarios.empty:
     df_horarios["estado"] = df_horarios["estado"].map(estado_emojis)
     st.dataframe(df_horarios, use_container_width=True)
 else:
@@ -82,7 +88,7 @@ if horas_disponibles:
         else:
             insertar_cita(str(fecha), hora, cliente_nombre.strip(), "", servicio)
             st.success("✅ Cita registrada. Espera aprobación del administrador.")
-            st.experimental_rerun()
+            st.rerun()
 else:
     st.warning("⛔ No hay horarios disponibles para esta fecha.")
 
