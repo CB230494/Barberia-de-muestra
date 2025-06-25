@@ -474,6 +474,11 @@ elif menu == "💵 Finanzas":
 # ---------------------------------------------
 elif menu == "📊 Reporte General":
     from database import obtener_cortes, obtener_ingresos, obtener_gastos
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
 
     st.title("📊 Reporte General")
     st.markdown("Resumen de actividad y finanzas por período de tiempo.")
@@ -520,6 +525,7 @@ elif menu == "📊 Reporte General":
         st.markdown(f"**Total de ingresos:** ₡{total_ingresos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         st.dataframe(df_ingresos[["fecha", "concepto", "monto", "observacion"]], use_container_width=True)
     else:
+        total_ingresos = 0
         st.info("No hay ingresos registrados en el rango seleccionado.")
 
     # --------- Gastos ---------
@@ -529,12 +535,12 @@ elif menu == "📊 Reporte General":
         st.markdown(f"**Total de gastos:** ₡{total_gastos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         st.dataframe(df_gastos[["fecha", "concepto", "monto", "observacion"]], use_container_width=True)
     else:
+        total_gastos = 0
         st.info("No hay gastos registrados en el rango seleccionado.")
 
     # --------- Balance final ---------
     st.divider()
     st.subheader("📉 Balance del período")
-
     balance = total_ingresos - total_gastos
     color = "green" if balance >= 0 else "red"
     st.markdown(
@@ -543,20 +549,94 @@ elif menu == "📊 Reporte General":
         unsafe_allow_html=True
     )
 
-    # --------- Descargar resumen Excel ---------
+    # --------- Descargar resumen en PDF ---------
     st.divider()
-    st.subheader("⬇️ Descargar respaldo")
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df_cortes.to_excel(writer, index=False, sheet_name="Cortes")
-        df_ingresos.to_excel(writer, index=False, sheet_name="Ingresos")
-        df_gastos.to_excel(writer, index=False, sheet_name="Gastos")
+    st.subheader("⬇️ Descargar informe financiero (PDF)")
+
+    pdf_buffer = io.BytesIO()
+    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=2*cm, rightMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    style_title = ParagraphStyle("title", fontSize=16, alignment=1, textColor=colors.white, backColor=colors.HexColor("#007bff"), spaceAfter=12, spaceBefore=6, leading=20)
+    style_section_title = ParagraphStyle("section", fontSize=12, textColor=colors.white, leftIndent=0, spaceBefore=12, spaceAfter=6, leading=14)
+    style_normal = styles["Normal"]
+    style_normal.spaceAfter = 6
+
+    def color_box(text, bgcolor):
+        return Table([[Paragraph(text, style_section_title)]], colWidths=[doc.width], style=[
+            ("BACKGROUND", (0, 0), (-1, -1), bgcolor),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4)
+        ])
+
+    def crear_tabla(data, headers):
+        table_data = [headers] + data
+        return Table(table_data, style=[
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#e8e8e8")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ], hAlign='LEFT')
+
+    # Título
+    elements.append(Paragraph("Informe Financiero", style_title))
+
+    # Introducción
+    elements.append(Paragraph(
+        "Este informe fue generado automáticamente por la Barbería [Nombre de la Barbería].",
+        style_normal
+    ))
+    elements.append(Paragraph(
+        f"<i>Período: {fecha_inicio.strftime('%d-%m-%Y')} al {fecha_fin.strftime('%d-%m-%Y')}</i>",
+        style_normal
+    ))
+
+    # Ingresos
+    elements.append(color_box("Ingresos", colors.HexColor("#cfe2ff")))
+    if not df_ingresos.empty:
+        elements.append(Paragraph(f"Total ingresos: CRC {total_ingresos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), style_normal))
+        ingresos_data = df_ingresos[["fecha", "concepto", "monto"]].astype(str).values.tolist()
+        elements.append(crear_tabla(ingresos_data, ["Fecha", "Concepto", "Monto"]))
+    else:
+        elements.append(Paragraph("No se registraron ingresos en este período.", style_normal))
+        elements.append(Paragraph("Total ingresos: CRC 0.00.", style_normal))
+
+    # Gastos
+    elements.append(color_box("Gastos", colors.HexColor("#f8d7da")))
+    if not df_gastos.empty:
+        elements.append(Paragraph(f"Total gastos: CRC {total_gastos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), style_normal))
+        gastos_data = df_gastos[["fecha", "concepto", "monto"]].astype(str).values.tolist()
+        elements.append(crear_tabla(gastos_data, ["Fecha", "Concepto", "Monto"]))
+    else:
+        elements.append(Paragraph("No se registraron gastos en este período.", style_normal))
+        elements.append(Paragraph("Total gastos: CRC 0.00.", style_normal))
+
+    # Balance final
+    balance_color = "#d1e7dd" if balance >= 0 else "#f8d7da"
+    balance_text_color = "#198754" if balance >= 0 else "#dc3545"
+    balance_text = f"<b>Balance final:</b> <font color='{balance_text_color}'>CRC {balance:,.2f}</font>".replace(",", "X").replace(".", ",").replace("X", ".")
+    elements.append(color_box("Balance final", colors.HexColor(balance_color)))
+    elements.append(Paragraph(balance_text, style_normal))
+
+    def agregar_pie(canvas, doc):
+        canvas.saveState()
+        footer_text = "Página %d - Barbería [Nombre de la Barbería]" % (doc.page)
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.grey)
+        canvas.drawRightString(A4[0] - 2*cm, 1.5*cm, footer_text)
+        canvas.restoreState()
+
+    doc.build(elements, onLaterPages=agregar_pie, onFirstPage=agregar_pie)
 
     st.download_button(
-        label="📁 Descargar respaldo en Excel",
-        data=output.getvalue(),
-        file_name="resumen_general.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        label="📄 Descargar informe financiero (PDF)",
+        data=pdf_buffer.getvalue(),
+        file_name="informe_financiero.pdf",
+        mime="application/pdf"
     )
 
 
