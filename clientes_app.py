@@ -21,7 +21,7 @@ HORARIO_FIN = 19     # 7:00 pm (exclusivo)
 INTERVALO_MINUTOS = 30
 SERVICIOS = ["Corte clásico", "Corte moderno", "Barba", "Color", "Combo completo"]
 
-# ====== Backend Sheets (incluido y robusto a hojas vacías) ======
+# ====== Backend Sheets (robusto a hojas vacías) ======
 @st.cache_resource(show_spinner=False)
 def _gc():
     sa = st.secrets.get("gcp_service_account")
@@ -75,6 +75,21 @@ def insertar_cita(fecha: str, hora: str, cliente_nombre: str, barbero: str, serv
         value_input_option="USER_ENTERED"
     )
 
+# ====== Utilidad: normalizar hora a HH:MM ======
+def _norm_hhmm(x: str) -> str:
+    """Convierte '8:5', '8:05', '08:5' -> '08:05'; deja '08:30' igual."""
+    x = str(x).strip()
+    if ":" not in x:
+        return x
+    h, m = x.split(":", 1)
+    try:
+        return f"{int(h):02d}:{int(m):02d}"
+    except Exception:
+        try:
+            return pd.to_datetime(x).strftime("%H:%M")
+        except Exception:
+            return x
+
 # ====== UI ======
 fecha = st.date_input("📅 Fecha", min_value=date.today())
 
@@ -82,16 +97,18 @@ def generar_horarios_del_dia(fecha):
     try:
         citas = obtener_citas()
         df = pd.DataFrame(citas)
+
         if not {"fecha", "hora", "estado"}.issubset(df.columns):
             df = pd.DataFrame(columns=["fecha", "hora", "estado"])
-        # Normaliza tipos
+
         if not df.empty:
             df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
-            df["hora"] = df["hora"].astype(str).str[:5]
+            df["hora"] = df["hora"].astype(str).map(_norm_hhmm)  # 🔧 normaliza a HH:MM
         else:
             df["fecha"] = pd.to_datetime(pd.Series(dtype="datetime64[ns]"))
             df["hora"] = pd.Series(dtype=str)
             df["estado"] = pd.Series(dtype=str)
+
     except Exception as e:
         st.warning(f"⚠️ Error al procesar citas: {e}")
         df = pd.DataFrame(columns=["fecha", "hora", "estado"])
@@ -101,11 +118,13 @@ def generar_horarios_del_dia(fecha):
     fin = actual.replace(hour=HORARIO_FIN)
 
     while actual < fin:
-        hora_str = actual.strftime("%H:%M")
+        hora_str = actual.strftime("%H:%M")  # siempre HH:MM
         estado = "disponible"
+
         coincidencias = df[(df["fecha"] == fecha) & (df["hora"] == hora_str)]
         if not coincidencias.empty:
             estado = coincidencias.iloc[0]["estado"] or "pendiente"
+
         horarios_dia.append({"hora": hora_str, "estado": estado})
         actual += timedelta(minutes=INTERVALO_MINUTOS)
     return horarios_dia
@@ -133,7 +152,7 @@ if horas_disponibles:
     st.subheader("📝 Reservar nueva cita")
     hora = st.selectbox("🕒 Hora disponible", horas_disponibles)
     cliente_nombre = st.text_input("👤 Tu nombre completo")
-    servicio = st.selectbox("🧴 Servicio", ["Corte clásico", "Corte moderno", "Barba", "Color", "Combo completo"])
+    servicio = st.selectbox("🧴 Servicio", SERVICIOS)
 
     if st.button("📥 Reservar cita"):
         if not cliente_nombre.strip():
@@ -144,4 +163,3 @@ if horas_disponibles:
             st.rerun()
 else:
     st.warning("⛔ No hay horarios disponibles para esta fecha.")
-
