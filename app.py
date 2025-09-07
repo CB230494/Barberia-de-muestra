@@ -1,32 +1,240 @@
 # ---------------------------------------------
 # 📋 SISTEMA DE CONTROL PARA BARBERÍA - STREAMLIT
-# Pestaña 1: ✂️ Registro de Cortes
+# app.py – TODO en un solo archivo, backend Google Sheets incluido
 # ---------------------------------------------
-
 import streamlit as st
 import pandas as pd
 import io
-from datetime import datetime, date, time
+from datetime import datetime, date, timedelta
+from typing import Dict, List, Any, Optional
 
-from database import (
-    insertar_corte,
-    obtener_cortes,
-    eliminar_corte,
-    actualizar_corte
-)
+# ==== PDF (Reporte General) ====
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+
+# ==== Google Sheets ====
+import gspread
 
 # -----------------------------
 # 🎛️ Configuración de la app
 # -----------------------------
 st.set_page_config(
-    page_title="Barbería - Registro de Cortes",
+    page_title="Barbería - Control General",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# -----------------------------
-# 📌 Menú lateral
-# -----------------------------
+# ============================================================
+# 🔌 BACKEND GOOGLE SHEETS (incluido en este archivo)
+# ============================================================
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1cs5I7U_nEHY7B0qCkA3WvY5_Y5hd97bd2nuifPrK6Jw/edit?usp=sharing"
+
+SCHEMAS: Dict[str, List[str]] = {
+    "Cortes":    ["id", "fecha", "barbero", "cliente", "tipo_corte", "precio", "observacion"],
+    "Productos": ["id", "nombre", "descripcion", "stock", "precio_unitario"],
+    "Citas":     ["id", "fecha", "hora", "cliente_nombre", "barbero", "servicio", "estado"],
+    "Ingresos":  ["id", "fecha", "concepto", "monto", "observacion"],
+    "Gastos":    ["id", "fecha", "concepto", "monto", "observacion"],
+}
+
+# ---- Conexión gspread
+@st.cache_resource(show_spinner=False)
+def _gc():
+    sa = st.secrets.get("gcp_service_account")
+    if not sa:
+        raise RuntimeError("Falta st.secrets['gcp_service_account']. Sube tu JSON del Service Account a st.secrets y comparte la hoja con ese correo (Editor).")
+    return gspread.service_account_from_dict(dict(sa))
+
+@st.cache_resource(show_spinner=False)
+def _open_sheet():
+    gc = _gc()
+    return gc.open_by_url(SPREADSHEET_URL)
+
+def _get_ws(title: str):
+    sh = _open_sheet()
+    try:
+        ws = sh.worksheet(title)
+    except gspread.WorksheetNotFound:
+        ws = sh.add_worksheet(title=title, rows=2000, cols=20)
+        ws.append_row(SCHEMAS[title])
+    # Garantiza cabeceras correctas
+    headers = ws.row_values(1)
+    if headers != SCHEMAS[title]:
+        if headers:
+            ws.delete_rows(1)
+        ws.insert_row(SCHEMAS[title], 1)
+    return ws
+
+def _next_id(ws) -> int:
+    ids = ws.col_values(1)[1:]
+    nums = []
+    for v in ids:
+        try:
+            nums.append(int(str(v).strip()))
+        except:
+            pass
+    return (max(nums) + 1) if nums else 1
+
+def _read_all(sheet: str) -> List[Dict[str, Any]]:
+    ws = _get_ws(sheet)
+    rows = ws.get_all_records()
+    for r in rows:
+        if "id" in r:
+            try: r["id"] = int(r["id"])
+            except: pass
+        for k in ("precio", "precio_unitario", "monto", "stock"):
+            if k in r and str(r[k]).strip() != "":
+                try: r[k] = float(str(r[k]).replace(",", "."))
+                except: pass
+    return rows
+
+def _find_row_by_id(ws, _id: int) -> Optional[int]:
+    vals = ws.col_values(1)
+    for idx, v in enumerate(vals, start=1):
+        if idx == 1:  # cabecera
+            continue
+        try:
+            if int(str(v).strip()) == int(_id):
+                return idx
+        except:
+            continue
+    return None
+
+def _append(sheet: str, values: Dict[str, Any]):
+    ws = _get_ws(sheet)
+    ordered = [values.get(k, "") for k in SCHEMAS[sheet]]
+    ws.append_row(ordered, value_input_option="USER_ENTERED")
+
+def _update(sheet: str, _id: int, values: Dict[str, Any]):
+    ws = _get_ws(sheet)
+    row = _find_row_by_id(ws, _id)
+    if not row:
+        return
+    colmap = {name: i+1 for i, name in enumerate(SCHEMAS[sheet])}
+    for k, v in values.items():
+        if k not in colmap: 
+            continue
+        ws.update_cell(row, colmap[k], v)
+
+def _delete(sheet: str, _id: int):
+    ws = _get_ws(sheet)
+    row = _find_row_by_id(ws, _id)
+    if row:
+        ws.delete_rows(row)
+
+# ---- Funciones específicas (mismo nombre que usabas)
+# Cortes
+def insertar_corte(fecha: str, barbero: str, cliente: str, tipo_corte: str, precio: float, observacion: str):
+    ws = _get_ws("Cortes")
+    _append("Cortes", {
+        "id": _next_id(ws),
+        "fecha": fecha,
+        "barbero": barbero,
+        "cliente": cliente,
+        "tipo_corte": tipo_corte,
+        "precio": precio,
+        "observacion": observacion
+    })
+
+def obtener_cortes() -> List[Dict[str, Any]]:
+    return _read_all("Cortes")
+
+def actualizar_corte(_id: int, values: Dict[str, Any]):
+    _update("Cortes", _id, values)
+
+def eliminar_corte(_id: int):
+    _delete("Cortes", _id)
+
+# Productos
+def insertar_producto(nombre: str, descripcion: str, stock: int, precio_unitario: float):
+    ws = _get_ws("Productos")
+    _append("Productos", {
+        "id": _next_id(ws),
+        "nombre": nombre,
+        "descripcion": descripcion,
+        "stock": stock,
+        "precio_unitario": precio_unitario
+    })
+
+def obtener_productos() -> List[Dict[str, Any]]:
+    return _read_all("Productos")
+
+def actualizar_producto(_id: int, values: Dict[str, Any]):
+    _update("Productos", _id, values)
+
+def eliminar_producto(_id: int):
+    _delete("Productos", _id)
+
+# Citas
+def insertar_cita(fecha: str, hora: str, cliente_nombre: str, barbero: str, servicio: str):
+    ws = _get_ws("Citas")
+    _append("Citas", {
+        "id": _next_id(ws),
+        "fecha": fecha,
+        "hora": hora,
+        "cliente_nombre": cliente_nombre,
+        "barbero": barbero,
+        "servicio": servicio,
+        "estado": "pendiente"
+    })
+
+def obtener_citas() -> List[Dict[str, Any]]:
+    return _read_all("Citas")
+
+def actualizar_cita(_id: int, values: Dict[str, Any]):
+    _update("Citas", _id, values)
+
+def actualizar_estado_cita(_id: int, nuevo_estado: str):
+    _update("Citas", _id, {"estado": nuevo_estado})
+
+def eliminar_cita(_id: int):
+    _delete("Citas", _id)
+
+# Ingresos / Gastos
+def insertar_ingreso(fecha: str, concepto: str, monto: float, observacion: str):
+    ws = _get_ws("Ingresos")
+    _append("Ingresos", {
+        "id": _next_id(ws),
+        "fecha": fecha,
+        "concepto": concepto,
+        "monto": monto,
+        "observacion": observacion
+    })
+
+def obtener_ingresos() -> List[Dict[str, Any]]:
+    return _read_all("Ingresos")
+
+def actualizar_ingreso(_id: int, values: Dict[str, Any]):
+    _update("Ingresos", _id, values)
+
+def eliminar_ingreso(_id: int):
+    _delete("Ingresos", _id)
+
+def insertar_gasto(fecha: str, concepto: str, monto: float, observacion: str):
+    ws = _get_ws("Gastos")
+    _append("Gastos", {
+        "id": _next_id(ws),
+        "fecha": fecha,
+        "concepto": concepto,
+        "monto": monto,
+        "observacion": observacion
+    })
+
+def obtener_gastos() -> List[Dict[str, Any]]:
+    return _read_all("Gastos")
+
+def actualizar_gasto(_id: int, values: Dict[str, Any]):
+    _update("Gastos", _id, values)
+
+def eliminar_gasto(_id: int):
+    _delete("Gastos", _id)
+
+# ============================================================
+# 🧭 UI – Misma app que ya tenías (con las 5 pestañas)
+# ============================================================
 menu = st.sidebar.radio(
     "Selecciona una sección",
     [
@@ -45,9 +253,7 @@ if menu == "✂️ Registro de Cortes":
     st.title("✂️ Registro de Cortes Realizados")
     st.markdown("Agrega, consulta o elimina cortes realizados por los barberos.")
 
-    # ---------- FORMULARIO NUEVO CORTE ----------
     st.subheader("➕ Agregar nuevo corte")
-
     with st.form("form_nuevo_corte"):
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -56,7 +262,6 @@ if menu == "✂️ Registro de Cortes":
             barbero = st.text_input("Nombre del barbero")
         with col3:
             cliente = st.text_input("Nombre del cliente")
-
         tipo_corte = st.selectbox("Tipo de corte", ["Clásico", "Fade", "Diseño", "Barba", "Otro"])
         precio = st.number_input("Precio (₡)", min_value=0.0, step=500.0, format="%.2f")
         observacion = st.text_area("Observaciones (opcional)")
@@ -71,17 +276,14 @@ if menu == "✂️ Registro de Cortes":
                 st.rerun()
 
     st.divider()
-
-    # ---------- LISTADO DE CORTES REGISTRADOS ----------
     st.subheader("📋 Historial de cortes")
 
     cortes = obtener_cortes()
     if cortes:
         df = pd.DataFrame(cortes)
         df["fecha"] = pd.to_datetime(df["fecha"]).dt.strftime("%d/%m/%Y")
-        df["precio"] = df["precio"].map(lambda x: round(x, 2))
+        df["precio"] = df["precio"].map(lambda x: round(x, 2) if isinstance(x, (float, int)) else x)
 
-        # Botón para descargar respaldo en Excel
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name="Cortes")
@@ -92,10 +294,9 @@ if menu == "✂️ Registro de Cortes":
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        # Mostrar los cortes en tarjetas editables
         for corte in cortes:
             with st.container():
-                id_corte = corte["id"]
+                id_corte = int(corte["id"])
                 editar = st.session_state.get(f"edit_{id_corte}", False)
 
                 if editar:
@@ -103,9 +304,14 @@ if menu == "✂️ Registro de Cortes":
                     f = st.date_input("Fecha", value=pd.to_datetime(corte["fecha"]), key=f"fecha_{id_corte}")
                     b = st.text_input("Barbero", value=corte["barbero"], key=f"barbero_{id_corte}")
                     c = st.text_input("Cliente", value=corte["cliente"], key=f"cliente_{id_corte}")
-                    t = st.selectbox("Tipo de corte", ["Clásico", "Fade", "Diseño", "Barba", "Otro"], index=0, key=f"tipo_{id_corte}")
-                    p = st.number_input("Precio (₡)", value=float(corte["precio"]), step=500.0, format="%.2f", key=f"precio_{id_corte}")
-                    o = st.text_area("Observación", value=corte["observacion"] or "", key=f"obs_{id_corte}")
+                    tipos = ["Clásico", "Fade", "Diseño", "Barba", "Otro"]
+                    try:
+                        idx = tipos.index(corte["tipo_corte"])
+                    except:
+                        idx = 0
+                    t = st.selectbox("Tipo de corte", tipos, index=idx, key=f"tipo_{id_corte}")
+                    p = st.number_input("Precio (₡)", value=float(corte.get("precio") or 0), step=500.0, format="%.2f", key=f"precio_{id_corte}")
+                    o = st.text_area("Observación", value=corte.get("observacion") or "", key=f"obs_{id_corte}")
 
                     col1, col2 = st.columns(2)
                     if col1.button("💾 Guardar", key=f"guardar_{id_corte}"):
@@ -125,12 +331,17 @@ if menu == "✂️ Registro de Cortes":
                         st.rerun()
                 else:
                     cols = st.columns([1.5, 2, 2, 2, 1.5, 3, 1, 1])
-                    cols[0].markdown(f"🗓️ **{corte['fecha']}**")
+                    cols[0].markdown(f"🗓️ **{pd.to_datetime(corte['fecha']).strftime('%d/%m/%Y')}**")
                     cols[1].markdown(f"💈 **{corte['barbero']}**")
                     cols[2].markdown(f"👤 {corte['cliente']}")
                     cols[3].markdown(f"✂️ {corte['tipo_corte']}")
-                    cols[4].markdown(f"💰 ₡{corte['precio']:,.2f}")
-                    cols[5].markdown(f"📝 {corte['observacion'] or '—'}")
+                    precio_val = corte.get("precio")
+                    try:
+                        precio_val = float(precio_val)
+                        cols[4].markdown(f"💰 ₡{precio_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    except:
+                        cols[4].markdown(f"💰 ₡{precio_val}")
+                    cols[5].markdown(f"📝 {corte.get('observacion') or '—'}")
                     if cols[6].button("✏️", key=f"edit_{id_corte}"):
                         st.session_state[f"edit_{id_corte}"] = True
                         st.rerun()
@@ -140,21 +351,14 @@ if menu == "✂️ Registro de Cortes":
                         st.rerun()
     else:
         st.info("Aún no se han registrado cortes.")
+
 # ---------------------------------------------
 # 📦 PESTAÑA 2: Inventario
 # ---------------------------------------------
 elif menu == "📦 Inventario":
-    from database import (
-        insertar_producto,
-        obtener_productos,
-        actualizar_producto,
-        eliminar_producto
-    )
-
     st.title("📦 Inventario de Productos")
     st.markdown("Administra los productos disponibles y su stock.")
 
-    # ---------- AGREGAR PRODUCTO ----------
     st.subheader("➕ Agregar nuevo producto")
     with st.form("form_nuevo_producto"):
         col1, col2 = st.columns(2)
@@ -173,14 +377,15 @@ elif menu == "📦 Inventario":
                 st.rerun()
 
     st.divider()
-
-    # ---------- LISTADO DE PRODUCTOS ----------
     st.subheader("📋 Productos en inventario")
-    productos = obtener_productos()
 
+    productos = obtener_productos()
     if productos:
         df = pd.DataFrame(productos)
-        df["precio_unitario"] = df["precio_unitario"].map(lambda x: round(x, 2))
+        def fnum(v): 
+            try: return float(v)
+            except: return v
+        df["precio_unitario"] = df["precio_unitario"].map(fnum)
 
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -193,18 +398,18 @@ elif menu == "📦 Inventario":
         )
 
         for producto in productos:
-            id_producto = producto["id"]
+            id_producto = int(producto["id"])
             editando = st.session_state.get(f"edit_prod_{id_producto}", False)
 
             if editando:
                 st.markdown(f"### ✏️ Editando producto ID {id_producto}")
                 col1, col2 = st.columns(2)
                 nombre_edit = col1.text_input("Nombre", value=producto["nombre"], key=f"nombre_{id_producto}")
-                precio_edit = col2.number_input("Precio (₡)", value=float(producto["precio_unitario"]), step=100.0, format="%.2f", key=f"precio_{id_producto}")
-                descripcion_edit = st.text_input("Descripción", value=producto["descripcion"] or "", key=f"desc_{id_producto}")
-                stock_edit = st.number_input("Stock", value=int(producto["stock"]), step=1, key=f"stock_{id_producto}")
-                col1, col2 = st.columns(2)
-                if col1.button("💾 Guardar", key=f"guardar_{id_producto}"):
+                precio_edit = col2.number_input("Precio (₡)", value=float(producto.get("precio_unitario") or 0), step=100.0, format="%.2f", key=f"precio_{id_producto}")
+                descripcion_edit = st.text_input("Descripción", value=producto.get("descripcion") or "", key=f"desc_{id_producto}")
+                stock_edit = st.number_input("Stock", value=int(float(producto.get("stock") or 0)), step=1, key=f"stock_{id_producto}")
+                col1b, col2b = st.columns(2)
+                if col1b.button("💾 Guardar", key=f"guardar_{id_producto}"):
                     actualizar_producto(id_producto, {
                         "nombre": nombre_edit,
                         "precio_unitario": precio_edit,
@@ -214,15 +419,18 @@ elif menu == "📦 Inventario":
                     st.session_state[f"edit_prod_{id_producto}"] = False
                     st.success("✅ Producto actualizado")
                     st.rerun()
-                if col2.button("❌ Cancelar", key=f"cancelar_{id_producto}"):
+                if col2b.button("❌ Cancelar", key=f"cancelar_{id_producto}"):
                     st.session_state[f"edit_prod_{id_producto}"] = False
                     st.rerun()
             else:
                 cols = st.columns([2, 2, 2, 2, 1, 1])
                 cols[0].markdown(f"📦 **{producto['nombre']}**")
-                cols[1].markdown(f"🧾 {producto['descripcion'] or '—'}")
-                cols[2].markdown(f"💰 ₡{producto['precio_unitario']:,.2f}")
-                cols[3].markdown(f"📦 Stock: {producto['stock']}")
+                cols[1].markdown(f"🧾 {producto.get('descripcion') or '—'}")
+                try:
+                    cols[2].markdown(f"💰 ₡{float(producto.get('precio_unitario') or 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                except:
+                    cols[2].markdown(f"💰 ₡{producto.get('precio_unitario')}")
+                cols[3].markdown(f"📦 Stock: {int(float(producto.get('stock') or 0))}")
                 if cols[4].button("✏️", key=f"edit_{id_producto}"):
                     st.session_state[f"edit_prod_{id_producto}"] = True
                     st.rerun()
@@ -232,14 +440,11 @@ elif menu == "📦 Inventario":
                     st.rerun()
     else:
         st.info("No hay productos registrados todavía.")
+
 # ---------------------------------------------
-# 📅 PESTAÑA: Gestión de Citas
+# 📅 PESTAÑA 3: Gestión de Citas (admin)
 # ---------------------------------------------
 elif menu == "📅 Citas":
-    from database import obtener_citas, actualizar_estado_cita, actualizar_cita, eliminar_cita
-    from datetime import datetime, date, time
-    import pandas as pd
-
     st.title("📅 Gestión de Citas")
     st.markdown("Revisa y administra las citas solicitadas por los clientes.")
 
@@ -255,87 +460,79 @@ elif menu == "📅 Citas":
         if estado_filtro != "todas":
             df = df[df["estado"] == estado_filtro]
 
-        for cita in df.itertuples():
+        for cita in df.to_dict(orient="records"):
             with st.container():
-                st.markdown(f"### 🧾 Cita ID {cita.id}")
+                cid = int(cita["id"])
+                fecha_str = cita["fecha"]
+                try:
+                    fecha_str_show = pd.to_datetime(fecha_str).strftime("%d/%m/%Y")
+                except:
+                    fecha_str_show = fecha_str
+
+                st.markdown(f"### 🧾 Cita ID {cid}")
                 col1, col2, col3 = st.columns(3)
-                fecha_str = cita.fecha.strftime("%d/%m/%Y") if not isinstance(cita.fecha, str) else cita.fecha
-                col1.markdown(f"**📅 Fecha:** {fecha_str}")
-                col2.markdown(f"**🕒 Hora:** {cita.hora}")
-                col3.markdown(f"**🧴 Servicio:** {cita.servicio}")
-                st.markdown(f"**👤 Cliente:** {cita.cliente_nombre}")
-                st.markdown(f"**✂️ Barbero asignado:** {cita.barbero or 'Sin asignar'}")
-                st.markdown(f"**📌 Estado actual:** `{cita.estado}`")
+                col1.markdown(f"**📅 Fecha:** {fecha_str_show}")
+                col2.markdown(f"**🕒 Hora:** {cita['hora']}")
+                col3.markdown(f"**🧴 Servicio:** {cita['servicio']}")
+                st.markdown(f"**👤 Cliente:** {cita['cliente_nombre']}")
+                st.markdown(f"**✂️ Barbero asignado:** {cita.get('barbero') or 'Sin asignar'}")
+                st.markdown(f"**📌 Estado actual:** `{cita['estado']}`")
 
                 with st.expander("✏️ Editar cita"):
-                    # Convertir fecha a formato compatible
-                    if isinstance(cita.fecha, str):
-                        try:
-                            valor_fecha = datetime.strptime(cita.fecha, "%d/%m/%Y").date()
-                        except ValueError:
-                            valor_fecha = datetime.strptime(cita.fecha, "%Y-%m-%d").date()
-                    else:
-                        valor_fecha = cita.fecha
-
-                    nueva_fecha = st.date_input("📅 Nueva fecha", value=valor_fecha, key=f"fecha_{cita.id}")
-
-                    # Convertir hora a formato time
+                    # Fecha
                     try:
-                        hora_original = datetime.strptime(cita.hora, "%H:%M").time()
-                    except ValueError:
-                        hora_original = datetime.strptime(cita.hora, "%H:%M:%S").time()
-
-                    nueva_hora = st.time_input("🕒 Nueva hora", value=hora_original, key=f"hora_{cita.id}")
-                    nuevo_barbero = st.text_input("✂️ Asignar barbero", value=cita.barbero or "", key=f"barbero_{cita.id}")
-                    nueva_fecha_str = nueva_fecha.strftime("%Y-%m-%d")
-                    nueva_hora_str = nueva_hora.strftime("%H:%M")
+                        valor_fecha = datetime.strptime(cita["fecha"], "%Y-%m-%d").date()
+                    except:
+                        try:
+                            valor_fecha = datetime.strptime(cita["fecha"], "%d/%m/%Y").date()
+                        except:
+                            valor_fecha = date.today()
+                    nueva_fecha = st.date_input("📅 Nueva fecha", value=valor_fecha, key=f"fecha_{cid}")
+                    # Hora
+                    try:
+                        hora_original = datetime.strptime(cita["hora"], "%H:%M").time()
+                    except:
+                        try:
+                            hora_original = datetime.strptime(cita["hora"], "%H:%M:%S").time()
+                        except:
+                            hora_original = datetime.strptime("08:00", "%H:%M").time()
+                    nueva_hora = st.time_input("🕒 Nueva hora", value=hora_original, key=f"hora_{cid}")
+                    nuevo_barbero = st.text_input("✂️ Asignar barbero", value=cita.get("barbero") or "", key=f"barbero_{cid}")
 
                     col_e1, col_e2 = st.columns(2)
-                    if col_e1.button("💾 Guardar cambios", key=f"guardar_cita_{cita.id}"):
-                        actualizar_cita(cita.id, {
-                            "fecha": nueva_fecha_str,
-                            "hora": nueva_hora_str,
+                    if col_e1.button("💾 Guardar cambios", key=f"guardar_cita_{cid}"):
+                        actualizar_cita(cid, {
+                            "fecha": nueva_fecha.strftime("%Y-%m-%d"),
+                            "hora": nueva_hora.strftime("%H:%M"),
                             "barbero": nuevo_barbero
                         })
                         st.success("✅ Cita actualizada")
                         st.rerun()
 
-                    if col_e2.button("🗑️ Eliminar cita", key=f"eliminar_cita_{cita.id}"):
-                        eliminar_cita(cita.id)
+                    if col_e2.button("🗑️ Eliminar cita", key=f"eliminar_cita_{cid}"):
+                        eliminar_cita(cid)
                         st.success("✅ Cita eliminada")
                         st.rerun()
 
                 col_a1, col_a2 = st.columns(2)
-                if cita.estado == "pendiente":
-                    if col_a1.button("✅ Aceptar", key=f"aceptar_{cita.id}"):
-                        actualizar_estado_cita(cita.id, "aceptada")
+                if cita["estado"] == "pendiente":
+                    if col_a1.button("✅ Aceptar", key=f"aceptar_{cid}"):
+                        actualizar_estado_cita(cid, "aceptada")
                         st.success("📬 Cita aceptada")
                         st.rerun()
-                    if col_a2.button("❌ Rechazar", key=f"rechazar_{cita.id}"):
-                        actualizar_estado_cita(cita.id, "rechazada")
+                    if col_a2.button("❌ Rechazar", key=f"rechazar_{cid}"):
+                        actualizar_estado_cita(cid, "rechazada")
                         st.warning("📭 Cita rechazada")
                         st.rerun()
-
 
 # ---------------------------------------------
 # 💵 PESTAÑA 4: Finanzas
 # ---------------------------------------------
 elif menu == "💵 Finanzas":
-    from database import (
-        insertar_ingreso,
-        obtener_ingresos,
-        actualizar_ingreso,
-        eliminar_ingreso,
-        insertar_gasto,
-        obtener_gastos,
-        actualizar_gasto,
-        eliminar_gasto
-    )
-
     st.title("💵 Control de Finanzas")
     st.markdown("Registra ingresos y gastos de la barbería, y consulta el balance general.")
 
-    # ----------- FORMULARIO INGRESO -----------
+    # -------- Ingreso --------
     st.subheader("➕ Agregar Ingreso")
     with st.form("form_ingreso"):
         col1, col2 = st.columns(2)
@@ -352,7 +549,7 @@ elif menu == "💵 Finanzas":
                 st.success("✅ Ingreso registrado")
                 st.rerun()
 
-    # ----------- FORMULARIO GASTO -----------
+    # -------- Gasto --------
     st.subheader("➖ Agregar Gasto")
     with st.form("form_gasto"):
         col1, col2 = st.columns(2)
@@ -370,8 +567,6 @@ elif menu == "💵 Finanzas":
                 st.rerun()
 
     st.divider()
-
-    # ----------- HISTORIAL Y BALANCE -----------
     st.subheader("📊 Resumen de movimientos")
 
     ingresos = obtener_ingresos()
@@ -380,8 +575,8 @@ elif menu == "💵 Finanzas":
     df_i = pd.DataFrame(ingresos) if ingresos else pd.DataFrame()
     df_g = pd.DataFrame(gastos) if gastos else pd.DataFrame()
 
-    total_i = sum(i["monto"] for i in ingresos)
-    total_g = sum(g["monto"] for g in gastos)
+    total_i = sum(float(i.get("monto") or 0) for i in ingresos)
+    total_g = sum(float(g.get("monto") or 0) for g in gastos)
     balance = total_i - total_g
     color = "green" if balance >= 0 else "red"
 
@@ -389,45 +584,44 @@ elif menu == "💵 Finanzas":
     st.markdown(f"**💸 Total Gastos:** ₡{total_g:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     st.markdown(
         f"<strong>🧾 Balance general:</strong> <span style='color:{color}; font-weight:bold;'>₡{balance:,.2f}</span>"
-        .replace(",", "X").replace(".", ",").replace("X", "."), unsafe_allow_html=True
+        .replace(",", "X").replace(".", ",").replace("X", "."),
+        unsafe_allow_html=True
     )
 
     st.divider()
-
-    # ----------- LISTADOS Y DESCARGA -----------
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("### 📋 Ingresos")
         if not df_i.empty:
             df_i["fecha"] = pd.to_datetime(df_i["fecha"]).dt.strftime("%d/%m/%Y")
-            df_i["monto"] = df_i["monto"].map(lambda x: round(x, 2))
+            df_i["monto"] = pd.to_numeric(df_i["monto"], errors="coerce")
             for ingreso in ingresos:
-                id = ingreso["id"]
-                editando = st.session_state.get(f"edit_ingreso_{id}", False)
+                _id = int(ingreso["id"])
+                editando = st.session_state.get(f"edit_ingreso_{_id}", False)
 
                 if editando:
-                    st.markdown(f"#### ✏️ Editando ingreso ID {id}")
-                    f = st.date_input("Fecha", value=pd.to_datetime(ingreso["fecha"]), key=f"fecha_i_{id}")
-                    c = st.text_input("Concepto", value=ingreso["concepto"], key=f"concepto_i_{id}")
-                    m = st.number_input("Monto (₡)", value=float(ingreso["monto"]), key=f"monto_i_{id}", step=500.0)
-                    o = st.text_input("Observación", value=ingreso["observacion"] or "", key=f"obs_i_{id}")
+                    st.markdown(f"#### ✏️ Editando ingreso ID {_id}")
+                    f = st.date_input("Fecha", value=pd.to_datetime(ingreso["fecha"]), key=f"fecha_i_{_id}")
+                    c = st.text_input("Concepto", value=ingreso["concepto"], key=f"concepto_i_{_id}")
+                    m = st.number_input("Monto (₡)", value=float(ingreso.get("monto") or 0), key=f"monto_i_{_id}", step=500.0)
+                    o = st.text_input("Observación", value=ingreso.get("observacion") or "", key=f"obs_i_{_id}")
                     col1a, col2a = st.columns(2)
-                    if col1a.button("💾 Guardar", key=f"guardar_i_{id}"):
-                        actualizar_ingreso(id, {"fecha": str(f), "concepto": c, "monto": m, "observacion": o})
-                        st.session_state[f"edit_ingreso_{id}"] = False
+                    if col1a.button("💾 Guardar", key=f"guardar_i_{_id}"):
+                        actualizar_ingreso(_id, {"fecha": str(f), "concepto": c, "monto": m, "observacion": o})
+                        st.session_state[f"edit_ingreso_{_id}"] = False
                         st.rerun()
-                    if col2a.button("❌ Cancelar", key=f"cancelar_i_{id}"):
-                        st.session_state[f"edit_ingreso_{id}"] = False
+                    if col2a.button("❌ Cancelar", key=f"cancelar_i_{_id}"):
+                        st.session_state[f"edit_ingreso_{_id}"] = False
                         st.rerun()
                 else:
-                    st.markdown(f"📅 {ingreso['fecha']} | 💰 ₡{ingreso['monto']:,.2f} | 📄 {ingreso['concepto']}")
-                    st.markdown(f"📝 {ingreso['observacion'] or '—'}")
+                    st.markdown(f"📅 {pd.to_datetime(ingreso['fecha']).strftime('%d/%m/%Y')} | 💰 ₡{float(ingreso.get('monto') or 0):,.2f} | 📄 {ingreso['concepto']}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.markdown(f"📝 {ingreso.get('observacion') or '—'}")
                     col1b, col2b = st.columns(2)
-                    if col1b.button("✏️ Editar", key=f"editar_i_{id}"):
-                        st.session_state[f"edit_ingreso_{id}"] = True
+                    if col1b.button("✏️ Editar", key=f"editar_i_{_id}"):
+                        st.session_state[f"edit_ingreso_{_id}"] = True
                         st.rerun()
-                    if col2b.button("🗑️ Eliminar", key=f"eliminar_i_{id}"):
-                        eliminar_ingreso(id)
+                    if col2b.button("🗑️ Eliminar", key=f"eliminar_i_{_id}"):
+                        eliminar_ingreso(_id)
                         st.success("✅ Ingreso eliminado")
                         st.rerun()
         else:
@@ -437,53 +631,46 @@ elif menu == "💵 Finanzas":
         st.markdown("### 📋 Gastos")
         if not df_g.empty:
             df_g["fecha"] = pd.to_datetime(df_g["fecha"]).dt.strftime("%d/%m/%Y")
-            df_g["monto"] = df_g["monto"].map(lambda x: round(x, 2))
+            df_g["monto"] = pd.to_numeric(df_g["monto"], errors="coerce")
             for gasto in gastos:
-                id = gasto["id"]
-                editando = st.session_state.get(f"edit_gasto_{id}", False)
+                _id = int(gasto["id"])
+                editando = st.session_state.get(f"edit_gasto_{_id}", False)
 
                 if editando:
-                    st.markdown(f"#### ✏️ Editando gasto ID {id}")
-                    f = st.date_input("Fecha", value=pd.to_datetime(gasto["fecha"]), key=f"fecha_g_{id}")
-                    c = st.text_input("Concepto", value=gasto["concepto"], key=f"concepto_g_{id}")
-                    m = st.number_input("Monto (₡)", value=float(gasto["monto"]), key=f"monto_g_{id}", step=500.0)
-                    o = st.text_input("Observación", value=gasto["observacion"] or "", key=f"obs_g_{id}")
+                    st.markdown(f"#### ✏️ Editando gasto ID {_id}")
+                    f = st.date_input("Fecha", value=pd.to_datetime(gasto["fecha"]), key=f"fecha_g_{_id}")
+                    c = st.text_input("Concepto", value=gasto["concepto"], key=f"concepto_g_{_id}")
+                    m = st.number_input("Monto (₡)", value=float(gasto.get("monto") or 0), key=f"monto_g_{_id}", step=500.0)
+                    o = st.text_input("Observación", value=gasto.get("observacion") or "", key=f"obs_g_{_id}")
                     col1a, col2a = st.columns(2)
-                    if col1a.button("💾 Guardar", key=f"guardar_g_{id}"):
-                        actualizar_gasto(id, {"fecha": str(f), "concepto": c, "monto": m, "observacion": o})
-                        st.session_state[f"edit_gasto_{id}"] = False
+                    if col1a.button("💾 Guardar", key=f"guardar_g_{_id}"):
+                        actualizar_gasto(_id, {"fecha": str(f), "concepto": c, "monto": m, "observacion": o})
+                        st.session_state[f"edit_gasto_{_id}"] = False
                         st.rerun()
-                    if col2a.button("❌ Cancelar", key=f"cancelar_g_{id}"):
-                        st.session_state[f"edit_gasto_{id}"] = False
+                    if col2a.button("❌ Cancelar", key=f"cancelar_g_{_id}"):
+                        st.session_state[f"edit_gasto_{_id}"] = False
                         st.rerun()
                 else:
-                    st.markdown(f"📅 {gasto['fecha']} | 💸 ₡{gasto['monto']:,.2f} | 📄 {gasto['concepto']}")
-                    st.markdown(f"📝 {gasto['observacion'] or '—'}")
+                    st.markdown(f"📅 {pd.to_datetime(gasto['fecha']).strftime('%d/%m/%Y')} | 💸 ₡{float(gasto.get('monto') or 0):,.2f} | 📄 {gasto['concepto']}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.markdown(f"📝 {gasto.get('observacion') or '—'}")
                     col1b, col2b = st.columns(2)
-                    if col1b.button("✏️ Editar", key=f"editar_g_{id}"):
-                        st.session_state[f"edit_gasto_{id}"] = True
+                    if col1b.button("✏️ Editar", key=f"editar_g_{_id}"):
+                        st.session_state[f"edit_gasto_{_id}"] = True
                         st.rerun()
-                    if col2b.button("🗑️ Eliminar", key=f"eliminar_g_{id}"):
-                        eliminar_gasto(id)
+                    if col2b.button("🗑️ Eliminar", key=f"eliminar_g_{_id}"):
+                        eliminar_gasto(_id)
                         st.success("✅ Gasto eliminado")
                         st.rerun()
         else:
             st.info("No hay gastos registrados.")
+
 # ---------------------------------------------
 # 📊 PESTAÑA 5: Reporte General
 # ---------------------------------------------
 elif menu == "📊 Reporte General":
-    from database import obtener_cortes, obtener_ingresos, obtener_gastos
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import cm
-
     st.title("📊 Reporte General")
     st.markdown("Resumen de actividad y finanzas por período de tiempo.")
 
-    # --------- Filtro de fechas ---------
     col1, col2 = st.columns(2)
     fecha_inicio = col1.date_input("📅 Desde", value=date(2025, 1, 1))
     fecha_fin = col2.date_input("📅 Hasta", value=date.today())
@@ -496,7 +683,6 @@ elif menu == "📊 Reporte General":
     df_ingresos = pd.DataFrame(ingresos)
     df_gastos = pd.DataFrame(gastos)
 
-    # --------- Filtros por fecha ---------
     def filtrar_por_fecha(df, columna="fecha"):
         if df.empty:
             return df
@@ -507,7 +693,6 @@ elif menu == "📊 Reporte General":
     df_ingresos = filtrar_por_fecha(df_ingresos)
     df_gastos = filtrar_por_fecha(df_gastos)
 
-    # --------- Cortes realizados ---------
     st.subheader("💈 Cortes realizados")
     if not df_cortes.empty:
         total_cortes = len(df_cortes)
@@ -518,9 +703,9 @@ elif menu == "📊 Reporte General":
     else:
         st.info("No hay cortes registrados en el rango seleccionado.")
 
-    # --------- Ingresos ---------
     st.subheader("💰 Ingresos")
     if not df_ingresos.empty:
+        df_ingresos["monto"] = pd.to_numeric(df_ingresos["monto"], errors="coerce")
         total_ingresos = df_ingresos["monto"].sum()
         st.markdown(f"**Total de ingresos:** ₡{total_ingresos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         st.dataframe(df_ingresos[["fecha", "concepto", "monto", "observacion"]], use_container_width=True)
@@ -528,9 +713,9 @@ elif menu == "📊 Reporte General":
         total_ingresos = 0
         st.info("No hay ingresos registrados en el rango seleccionado.")
 
-    # --------- Gastos ---------
     st.subheader("💸 Gastos")
     if not df_gastos.empty:
+        df_gastos["monto"] = pd.to_numeric(df_gastos["monto"], errors="coerce")
         total_gastos = df_gastos["monto"].sum()
         st.markdown(f"**Total de gastos:** ₡{total_gastos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         st.dataframe(df_gastos[["fecha", "concepto", "monto", "observacion"]], use_container_width=True)
@@ -538,10 +723,9 @@ elif menu == "📊 Reporte General":
         total_gastos = 0
         st.info("No hay gastos registrados en el rango seleccionado.")
 
-    # --------- Balance final ---------
     st.divider()
     st.subheader("📉 Balance del período")
-    balance = total_ingresos - total_gastos
+    balance = (total_ingresos or 0) - (total_gastos or 0)
     color = "green" if balance >= 0 else "red"
     st.markdown(
         f"<strong>Balance final:</strong> <span style='color:{color}; font-weight:bold;'>₡{balance:,.2f}</span>"
@@ -549,7 +733,7 @@ elif menu == "📊 Reporte General":
         unsafe_allow_html=True
     )
 
-    # --------- Descargar resumen en PDF ---------
+    # ===== Descargar informe PDF =====
     st.divider()
     st.subheader("⬇️ Descargar informe financiero (PDF)")
 
@@ -560,8 +744,7 @@ elif menu == "📊 Reporte General":
 
     style_title = ParagraphStyle("title", fontSize=16, alignment=1, textColor=colors.white, backColor=colors.HexColor("#007bff"), spaceAfter=12, spaceBefore=6, leading=20)
     style_section_title = ParagraphStyle("section", fontSize=12, textColor=colors.white, leftIndent=0, spaceBefore=12, spaceAfter=6, leading=14)
-    style_normal = styles["Normal"]
-    style_normal.spaceAfter = 6
+    style_normal = styles["Normal"]; style_normal.spaceAfter = 6
 
     def color_box(text, bgcolor):
         return Table([[Paragraph(text, style_section_title)]], colWidths=[doc.width], style=[
@@ -584,16 +767,8 @@ elif menu == "📊 Reporte General":
 
     # Título
     elements.append(Paragraph("Informe Financiero", style_title))
-
-    # Introducción
-    elements.append(Paragraph(
-        "Este informe fue generado automáticamente por la Barbería [Nombre de la Barbería].",
-        style_normal
-    ))
-    elements.append(Paragraph(
-        f"<i>Período: {fecha_inicio.strftime('%d-%m-%Y')} al {fecha_fin.strftime('%d-%m-%Y')}</i>",
-        style_normal
-    ))
+    elements.append(Paragraph("Este informe fue generado automáticamente por la Barbería [Nombre de la Barbería].", style_normal))
+    elements.append(Paragraph(f"<i>Período: {fecha_inicio.strftime('%d-%m-%Y')} al {fecha_fin.strftime('%d-%m-%Y')}</i>", style_normal))
 
     # Ingresos
     elements.append(color_box("Ingresos", colors.HexColor("#cfe2ff")))
@@ -638,6 +813,8 @@ elif menu == "📊 Reporte General":
         file_name="informe_financiero.pdf",
         mime="application/pdf"
     )
+
+
 
 
 
