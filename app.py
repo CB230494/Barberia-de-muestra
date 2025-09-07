@@ -1,6 +1,6 @@
 # ---------------------------------------------
 # 📋 SISTEMA DE CONTROL PARA BARBERÍA - ADMIN
-# app.py – Todo en un archivo (UI + backend Google Sheets)
+# app.py – UI + backend Google Sheets (sin Supabase)
 # ---------------------------------------------
 import streamlit as st
 import pandas as pd
@@ -55,7 +55,7 @@ def _open_sheet():
     return _gc().open_by_url(SPREADSHEET_URL)
 
 def _get_ws(title: str):
-    """Abre/crea hoja y garantiza cabeceras en la fila 1 (a prueba de vacío)."""
+    """Abre/crea hoja y garantiza cabeceras en la fila 1."""
     sh = _open_sheet()
     schema = SCHEMAS[title]
     try:
@@ -75,7 +75,7 @@ def _get_ws(title: str):
     return ws
 
 def _next_id(ws) -> int:
-    ids = ws.col_values(1)[1:]  # omite cabecera
+    ids = ws.col_values(1)[1:]
     nums = []
     for v in ids:
         try:
@@ -85,12 +85,11 @@ def _next_id(ws) -> int:
     return (max(nums) + 1) if nums else 1
 
 def _read_all(sheet: str) -> List[Dict[str, Any]]:
-    """Lee registros de forma segura aunque la hoja esté vacía (sin explotar)."""
+    """Lee registros de forma segura aunque la hoja esté vacía."""
     ws = _get_ws(sheet)
     all_vals = ws.get_all_values()
     if not all_vals or len(all_vals) == 1:
-        return []  # no hay datos (solo cabeceras o vacío)
-
+        return []
     rows = ws.get_all_records()
     # Normaliza tipos
     for r in rows:
@@ -110,7 +109,7 @@ def _read_all(sheet: str) -> List[Dict[str, Any]]:
 def _find_row_by_id(ws, _id: int) -> Optional[int]:
     vals = ws.col_values(1)
     for idx, v in enumerate(vals, start=1):
-        if idx == 1:
+        if idx == 1:  # cabecera
             continue
         try:
             if int(str(v).strip()) == int(_id):
@@ -432,6 +431,16 @@ elif menu == "📅 Citas":
     citas = obtener_citas()
     df = pd.DataFrame(citas)
 
+    # 🔧 Normaliza hora a HH:MM para evitar '8:30' vs '08:30'
+    if not df.empty and "hora" in df.columns:
+        def _norm_hhmm(x):
+            x = str(x).strip()
+            if ":" not in x: return x
+            h, m = x.split(":", 1)
+            try: return f"{int(h):02d}:{int(m):02d}"
+            except: return x
+        df["hora"] = df["hora"].astype(str).map(_norm_hhmm)
+
     if df.empty:
         st.info("No hay citas registradas.")
     else:
@@ -567,7 +576,6 @@ elif menu == "💵 Finanzas":
                 if c2.button("🗑️ Eliminar", key=f"eliminar_i_{_id}"):
                     eliminar_ingreso(_id); st.rerun()
 
-            # Ediciones inline
             for ingreso in ingresos:
                 _id = int(ingreso["id"])
                 if st.session_state.get(f"edit_ingreso_{_id}"):
@@ -715,24 +723,24 @@ elif menu == "📊 Reporte General":
     elements.append(Paragraph(f"<i>Período: {fecha_inicio.strftime('%d-%m-%Y')} al {fecha_fin.strftime('%d-%m-%Y')}</i>", style_normal))
 
     # Ingresos
-    elements.append(color_box("Ingresos", colors.HexColor("#cfe2ff")))
     if not df_ingresos.empty:
+        elements.append(color_box("Ingresos", colors.HexColor("#cfe2ff")))
         elements.append(Paragraph(f"Total ingresos: CRC {total_ingresos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), style_normal))
         ingresos_data = df_ingresos[["fecha", "concepto", "monto"]].astype(str).values.tolist()
         elements.append(crear_tabla(ingresos_data, ["Fecha", "Concepto", "Monto"]))
     else:
-        elements.append(Paragraph("No se registraron ingresos en este período.", style_normal))
-        elements.append(Paragraph("Total ingresos: CRC 0.00.", style_normal))
+        elements.append(color_box("Ingresos", colors.HexColor("#cfe2ff")))
+        elements.append(Paragraph("No se registraron ingresos en este período.\nTotal ingresos: CRC 0.00.", style_normal))
 
     # Gastos
-    elements.append(color_box("Gastos", colors.HexColor("#f8d7da")))
     if not df_gastos.empty:
+        elements.append(color_box("Gastos", colors.HexColor("#f8d7da")))
         elements.append(Paragraph(f"Total gastos: CRC {total_gastos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), style_normal))
         gastos_data = df_gastos[["fecha", "concepto", "monto"]].astype(str).values.tolist()
         elements.append(crear_tabla(gastos_data, ["Fecha", "Concepto", "Monto"]))
     else:
-        elements.append(Paragraph("No se registraron gastos en este período.", style_normal))
-        elements.append(Paragraph("Total gastos: CRC 0.00.", style_normal))
+        elements.append(color_box("Gastos", colors.HexColor("#f8d7da")))
+        elements.append(Paragraph("No se registraron gastos en este período.\nTotal gastos: CRC 0.00.", style_normal))
 
     # Balance final
     balance_color = "#d1e7dd" if balance >= 0 else "#f8d7da"
@@ -756,6 +764,7 @@ elif menu == "📊 Reporte General":
         "informe_financiero.pdf",
         "application/pdf"
     )
+
 
 
 
